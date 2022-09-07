@@ -3,19 +3,17 @@
 set -Eeuo pipefail
 
 main() {
-    ensure_conda
-    # echo params: "$@"
-
     parse_params "$@"
     setup_colors
 
     trap cleanup SIGINT SIGTERM ERR EXIT
 
-    # script logic here
-
-    msg "${RED}Read parameters:${NOFORMAT}"
+    msg "${BLUE}Read parameters:${NOFORMAT}"
     msg "- force: ${force}"
     msg "- target_dir: ${target_dir}"
+
+    # script logic here
+    ensure_conda
 }
 
 usage() {
@@ -29,9 +27,10 @@ the --force option is applied.
 
 Available options:
 
--h, --help      Print this help and exit
--v, --verbose   Print script debug info
+-h, --help      Print this help and exit.
+-v, --verbose   Print script debug info.
 --force         Force overwriting existing infrastructure!
+--no-color      Turn off color output.
 EOF
     exit
 }
@@ -48,22 +47,17 @@ parse_params() {
             -v | --verbose) set -x ;;
             --no-color) NO_COLOR=1 ;;
             --force) force=1 ;;
-            -p | --param) # example named parameter
-                [[ $# -gt 1 ]] || die "missing value for -p"
-                param="${2-}"
-                shift
-                ;;
-            -?*) die "Unknown option: $1" ;;
+            -?*) die "Unknown option: $1 (-h for help)" ;;
             *) break ;;
         esac
         shift
     done
 
-    [[ $# -eq 0 ]] && die "missing value for TARGET_DIR"
+    [[ $# -eq 0 ]] && die "missing value for TARGET_DIR (-h for help)"
     target_dir="$1"
     shift
 
-    [[ $# -eq 0 ]] || die "unused positional parameters: $@"
+    [[ $# -eq 0 ]] || die "unused positional parameters: $@ (-h for help)"
 
     return 0
 }

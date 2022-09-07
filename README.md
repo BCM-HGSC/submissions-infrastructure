@@ -39,15 +39,3 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 
 - https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 - https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
-
-```
-tmp_root=$(dirname $(mktemp -u))
-mkdir $tmp_root/hale/
-
-my_tmp_dir=$(mktemp -d --tmpdir hale/$(date +%Y-%m-%d)-XXXX)
-echo $my_tmp_dir
-cd $my_tmp_dir/
-
-curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o installer.sh
-bash installer.sh -bp ./miniconda
-```

@@ -28,12 +28,13 @@ main() {
 
     trap cleanup SIGINT SIGTERM ERR EXIT
 
-    if [[ -n $verbose ]]; then
+    if [[ $verbose == 'yy' ]]; then
         set -x
     fi
 
     msg "${BLUE}Read parameters:${NOFORMAT}"
-    msg "- force: ${force}"
+    msg "- verbose: '${verbose}'"
+    msg "- force: '${force}'"
     msg "- target_dir: ${target_dir}"
     msg
 
@@ -48,7 +49,9 @@ main() {
 
     ensure_conda
     msg "Haz conda? CONDA='$CONDA'"
-    "$CONDA" info
+    if [[ $verbose == 'y' ]]; then
+        "$CONDA" info # | fgrep -v -e __ -e user-agent -e build | cat -n
+    fi
 }
 
 parse_params() {
@@ -61,9 +64,9 @@ parse_params() {
     while :; do
         case "${1-}" in
             -h | --help) usage ;;
-            -v | --verbose) verbose=y ;;
+            -v | --verbose) verbose=${verbose}y ;;
             --no-color) NO_COLOR=y ;;
-            --force) force=1 ;;
+            --force) force=y ;;
             -?*) die "Unknown option: $1 (-h for help)" ;;
             *) break ;;
         esac

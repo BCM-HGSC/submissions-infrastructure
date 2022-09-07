@@ -37,9 +37,8 @@ main() {
     msg
 
     # script logic here
-
     setup_temp
-
+    check_os
     ensure_conda
     msg "Haz conda?"
 }
@@ -82,6 +81,15 @@ setup_temp() {
     my_tmp_dir=$(mktemp -d $template)
     echo "my_tmp_dir=$my_tmp_dir"
     cd $my_tmp_dir
+}
+
+check_os() {
+    u=$(uname)
+    case "$u" in
+        Darwin) plat=MacOSX ;;
+        Linux) plat=Linux ;;
+        *) die "unknown platform $u"
+    esac
 }
 
 ensure_conda() {

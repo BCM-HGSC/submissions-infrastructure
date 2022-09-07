@@ -22,6 +22,7 @@ EOF
 }
 
 main() {
+    setup_colors
     parse_params "$@"
     setup_colors
 
@@ -43,16 +44,11 @@ main() {
     msg "resolved_target: $resolved_target"
 
     check_os
-    setup_temp
+    setup_target
+
     ensure_conda
     msg "Haz conda? CONDA='$CONDA'"
     "$CONDA" info
-    # cd "$resolved_target"
-    # mkdir -p conda_package_cache infrastructure user_envs
-    # cd infrastructure
-    # mkdir -p blue green staging testing
-    # rm -f current
-    # ln -s blue current
 }
 
 parse_params() {
@@ -92,16 +88,20 @@ check_os() {
     esac
 }
 
-setup_temp() {
-    tmp_root=$(dirname $(mktemp -u))
-    # msg "tmp_root=$tmp_root"
-    user_root=$tmp_root/$USER
-    # msg "user_root=$user_root"
-    mkdir -p $user_root
-    template=$tmp_root/$USER/$(date +%Y-%m-%d)-XXXX
-    my_tmp_dir=$(mktemp -d $template)
-    # msg "my_tmp_dir=$my_tmp_dir"
-    cd $my_tmp_dir
+setup_target() {
+    cd "$resolved_target"
+    if [[ -e infrastructure ]]; then
+        if [[ -z $force ]]; then
+            die "$target_dir/infrastructure already exists"
+        else
+            msg "overwriting $resolved_target/infrastructure"
+            rm -rf infrastructure
+        fi
+    fi
+    mkdir -p conda_package_cache infrastructure user_envs
+    cd infrastructure
+    mkdir -p blue green staging testing
+    ln -s blue current
 }
 
 ensure_conda() {
@@ -115,6 +115,7 @@ ensure_conda() {
             # What do you do when you have no conda?
             # What do you do when you have no conda?
             # Fetch it from the server!
+            setup_temp
             msg "fetch conda!!!"
             cd $my_tmp_dir
             url="https://repo.anaconda.com/miniconda/Miniconda3-latest-$plat-x86_64.sh"
@@ -126,14 +127,25 @@ ensure_conda() {
     fi
 }
 
+setup_temp() {
+    tmp_root=$(dirname $(mktemp -u))
+    # msg "tmp_root=$tmp_root"
+    user_root=$tmp_root/$USER
+    # msg "user_root=$user_root"
+    mkdir -p $user_root
+    template=$tmp_root/$USER/$(date +%Y-%m-%d)-XXXX
+    my_tmp_dir=$(mktemp -d $template)
+    # msg "my_tmp_dir=$my_tmp_dir"
+}
+
 cleanup() {
     trap - SIGINT SIGTERM ERR EXIT
     # script cleanup here
     cd
     msg ${BLUE}CLEANUP${NOFORMAT}
-    if [[ -e ${user_root-} ]]; then
-        msg "rm -rf $user_root"
-        rm -rf "$user_root"
+    if [[ -e ${my_tmp_dir-} ]]; then
+        msg "rm -rf $my_tmp_dir"
+        rm -rf "$my_tmp_dir"
     fi
     msg ${BLUE}DONE${NOFORMAT}
 }
@@ -143,7 +155,7 @@ msg() {
 }
 
 die() {
-    local msg=$1
+    local msg="${RED-}ERROR:${NOFORMAT-} $1"
     local code=${2-1} # default exit status 1
     msg "$msg"
     exit "$code"

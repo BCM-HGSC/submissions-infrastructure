@@ -51,8 +51,8 @@ parse_params() {
             -p | --param) # example named parameter
                 [[ $# -gt 1 ]] || die "missing value for -p"
                 param="${2-}"
-            shift
-        ;;
+                shift
+                ;;
         -?*) die "Unknown option: $1" ;;
         *) break ;;
         esac

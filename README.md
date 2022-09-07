@@ -9,6 +9,9 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
   - condarc (optional)
   - conda_package_cache (optional)
   - user_envs
+    - hale
+    - eskinner
+    - ...
   - infrastructure
     - blue
       - bin

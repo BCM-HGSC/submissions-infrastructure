@@ -2,6 +2,25 @@
 
 set -Eeuo pipefail
 
+usage() {
+    cat << EOF
+Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--force] TARGET_DIR
+
+Create TARGET_DIR if it does not already exist, and populated it with  a
+subdirectory named "conda_package_cache" and another subdirectory named
+"infrastructure". It is an error if "infrastructure" already exists unless
+the --force option is applied.
+
+Available options:
+
+-h, --help      Print this help and exit.
+-v, --verbose   Print script debug info.
+--no-color      Turn off color output.
+--force         Force overwriting existing infrastructure!
+EOF
+    exit
+}
+
 main() {
     parse_params "$@"
     setup_colors
@@ -23,25 +42,6 @@ main() {
 
     ensure_conda
     msg "Haz conda?"
-}
-
-usage() {
-    cat << EOF
-Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--force] TARGET_DIR
-
-Create TARGET_DIR if it does not already exist, and populated it with  a
-subdirectory named "conda_package_cache" and another subdirectory named
-"infrastructure". It is an error if "infrastructure" already exists unless
-the --force option is applied.
-
-Available options:
-
--h, --help      Print this help and exit.
--v, --verbose   Print script debug info.
---no-color      Turn off color output.
---force         Force overwriting existing infrastructure!
-EOF
-    exit
 }
 
 parse_params() {

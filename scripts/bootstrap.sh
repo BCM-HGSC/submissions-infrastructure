@@ -94,13 +94,13 @@ check_os() {
 
 setup_temp() {
     tmp_root=$(dirname $(mktemp -u))
-    # echo "tmp_root=$tmp_root"
+    # msg "tmp_root=$tmp_root"
     user_root=$tmp_root/$USER
-    # echo "user_root=$user_root"
+    # msg "user_root=$user_root"
     mkdir -p $user_root
     template=$tmp_root/$USER/$(date +%Y-%m-%d)-XXXX
     my_tmp_dir=$(mktemp -d $template)
-    # echo "my_tmp_dir=$my_tmp_dir"
+    # msg "my_tmp_dir=$my_tmp_dir"
     cd $my_tmp_dir
 }
 

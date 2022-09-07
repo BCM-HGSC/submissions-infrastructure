@@ -36,11 +36,15 @@ main() {
     msg "- target_dir: ${target_dir}"
     msg
 
+    mkdir -p "$target_dir"
+    resolved_target=$(cd -P "$target_dir"; pwd)
+    msg "resolved_target: $resolved_target"
+
     # script logic here
-    setup_temp
     check_os
+    setup_temp
     ensure_conda
-    msg "Haz conda?"
+    msg "Haz conda? CONDA='$CONDA'"
 }
 
 parse_params() {
@@ -71,18 +75,6 @@ parse_params() {
     return 0
 }
 
-setup_temp() {
-    tmp_root=$(dirname $(mktemp -u))
-    echo "tmp_root=$tmp_root"
-    user_root=$tmp_root/$USER
-    echo "user_root=$user_root"
-    mkdir -p $user_root
-    template=$tmp_root/$USER/$(date +%Y-%m-%d)-XXXX
-    my_tmp_dir=$(mktemp -d $template)
-    echo "my_tmp_dir=$my_tmp_dir"
-    cd $my_tmp_dir
-}
-
 check_os() {
     u=$(uname)
     case "$u" in
@@ -92,20 +84,31 @@ check_os() {
     esac
 }
 
+setup_temp() {
+    tmp_root=$(dirname $(mktemp -u))
+    # echo "tmp_root=$tmp_root"
+    user_root=$tmp_root/$USER
+    # echo "user_root=$user_root"
+    mkdir -p $user_root
+    template=$tmp_root/$USER/$(date +%Y-%m-%d)-XXXX
+    my_tmp_dir=$(mktemp -d $template)
+    # echo "my_tmp_dir=$my_tmp_dir"
+    cd $my_tmp_dir
+}
+
 ensure_conda() {
-    echo hello
     if [[ ! -x ${CONDA-} ]]; then
+        msg '$CONDA not set.'
         CONDA=$(which conda) || msg "No conda in PATH."
-    fi
-
-    echo foo
-
-    if [[ ! -x $CONDA ]]; then
-        # What do you do when you have no conda?
-        # What do you do when you have no conda?
-        # What do you do when you have no conda?
-        # Fetch it from the server!
-        msg "fetch conda!!!"
+        if [[ -x $CONDA ]]; then
+            msg "Using conda at $CONDA"
+        else
+            # What do you do when you have no conda?
+            # What do you do when you have no conda?
+            # What do you do when you have no conda?
+            # Fetch it from the server!
+            msg "fetch conda!!!"
+        fi
     fi
 }
 
@@ -114,8 +117,10 @@ cleanup() {
     # script cleanup here
     cd
     msg ${BLUE}CLEANUP${NOFORMAT}
-    msg "rm -rf $user_root"
-    rm -rf "$user_root"
+    if [[ -e ${user_root-} ]]; then
+        msg "rm -rf $user_root"
+        rm -rf "$user_root"
+    fi
     msg ${BLUE}DONE${NOFORMAT}
 }
 

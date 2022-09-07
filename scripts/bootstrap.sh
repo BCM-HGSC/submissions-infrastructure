@@ -1,7 +1,6 @@
 # Starting with just bash, bootstrap our infrastructure.
 
 set -Eeuo pipefail
-trap cleanup SIGINT SIGTERM ERR EXIT
 
 main() {
     ensure_conda
@@ -9,6 +8,8 @@ main() {
 
     parse_params "$@"
     setup_colors
+
+    trap cleanup SIGINT SIGTERM ERR EXIT
 
     # script logic here
 
@@ -39,7 +40,7 @@ parse_params() {
     # Set force and target_dir.
 
     # default values of variables set from params
-    force=0
+    force=
 
     while :; do
         case "${1-}" in
@@ -84,6 +85,7 @@ ensure_conda() {
 cleanup() {
     trap - SIGINT SIGTERM ERR EXIT
     # script cleanup here
+    msg ${BLUE}CLEANUP
 }
 
 msg() {

@@ -38,10 +38,12 @@ EOF
     exit
 }
 
+
 parse_params() {
+    # Set force and target_dir.
+
     # default values of variables set from params
     force=0
-    param='default'
 
     while :; do
         case "${1-}" in

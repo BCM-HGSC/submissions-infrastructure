@@ -36,15 +36,23 @@ main() {
     msg "- target_dir: ${target_dir}"
     msg
 
+    # script logic here
+
     mkdir -p "$target_dir"
     resolved_target=$(cd -P "$target_dir"; pwd)
     msg "resolved_target: $resolved_target"
 
-    # script logic here
     check_os
     setup_temp
     ensure_conda
     msg "Haz conda? CONDA='$CONDA'"
+    "$CONDA" info
+    # cd "$resolved_target"
+    # mkdir -p conda_package_cache infrastructure user_envs
+    # cd infrastructure
+    # mkdir -p blue green staging testing
+    # rm -f current
+    # ln -s blue current
 }
 
 parse_params() {
@@ -76,7 +84,7 @@ parse_params() {
 }
 
 check_os() {
-    u=$(uname)
+    local u=$(uname)
     case "$u" in
         Darwin) plat=MacOSX ;;
         Linux) plat=Linux ;;
@@ -108,6 +116,12 @@ ensure_conda() {
             # What do you do when you have no conda?
             # Fetch it from the server!
             msg "fetch conda!!!"
+            cd $my_tmp_dir
+            url="https://repo.anaconda.com/miniconda/Miniconda3-latest-$plat-x86_64.sh"
+            msg "fetching $url"
+            curl "$url" -o installer.sh
+            bash installer.sh -bp ./miniconda
+            CONDA=$my_tmp_dir/miniconda/condabin/conda
         fi
     fi
 }

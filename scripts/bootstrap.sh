@@ -103,7 +103,7 @@ setup_target() {
     fi
     mkdir -p conda_package_cache infrastructure user_envs
     cd infrastructure
-    mkdir -p blue green staging testing
+    mkdir -p blue green staging testing blue/{bin,etc} blue/conda/{def,envs}
     ln -s blue current
 }
 

@@ -15,31 +15,32 @@ main() {
     # script logic here
 
     msg "${RED}Read parameters:${NOFORMAT}"
-    msg "- flag: ${flag}"
-    msg "- param: ${param}"
-    msg "- arguments: ${args[*]-}"
+    msg "- force: ${force}"
+    msg "- target_dir: ${target_dir}"
 }
 
 
 usage() {
     cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [-f] -p param_value arg1 [arg2...]
+Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--force] TARGET_DIR
 
-Script description here.
+Create TARGET_DIR if it does not already exist, and populated it with  a
+subdirectory named "conda_package_cache" and another subdirectory named
+"infrastructure". It is an error if "infrastructure" already exists unless
+the --force option is applied.
 
 Available options:
 
 -h, --help      Print this help and exit
 -v, --verbose   Print script debug info
--f, --flag      Some flag description
--p, --param     Some param description
+--force         Force overwriting existing infrastructure!
 EOF
     exit
 }
 
 parse_params() {
     # default values of variables set from params
-    flag=0
+    force=0
     param='default'
 
     while :; do
@@ -47,7 +48,7 @@ parse_params() {
             -h | --help) usage ;;
             -v | --verbose) set -x ;;
             --no-color) NO_COLOR=1 ;;
-            -f | --flag) flag=1 ;; # example flag
+            --force) force=1 ;;
             -p | --param) # example named parameter
                 [[ $# -gt 1 ]] || die "missing value for -p"
                 param="${2-}"
@@ -59,11 +60,11 @@ parse_params() {
         shift
     done
 
-    args=("$@")
+    [[ $# -eq 0 ]] && die "missing value for TARGET_DIR"
+    target_dir="$1"
+    shift
 
-    # check required params and arguments
-    [[ -z "${param-}" ]] && die "Missing required parameter: param (-h for help)"
-    [[ ${#args[@]} -eq 0 ]] && die "Missing script arguments (-h for help)"
+    [[ $# -eq 0 ]] || die "unused positional parameters: $@"
 
     return 0
 }

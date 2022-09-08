@@ -99,6 +99,12 @@ setup_target() {
     mkdir -p blue green staging testing blue/{bin,etc} blue/conda/{def,envs}
     ln -s blue current
     touch current/condarc
+    write_condarc
+}
+
+write_condarc() {
+    local condarc_template=$script_dir/../resources/condarc.m4
+    m4 -D RESOLVED_TARGET=$resolved_target $condarc_template > current/condarc
 }
 
 ensure_conda() {

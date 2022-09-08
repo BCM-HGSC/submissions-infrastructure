@@ -38,6 +38,9 @@ main() {
     dump_var target_dir '- '
     msg
 
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+    dump_var script_dir
+
     # script logic here
 
     mkdir -p "$target_dir"
@@ -91,6 +94,9 @@ setup_target() {
     cd infrastructure
     mkdir -p blue green staging testing blue/{bin,etc} blue/conda/{def,envs}
     ln -s blue current
+    touch current/condarc
+    cd ..
+    ln -s infrastructure/current/condarc
 }
 
 ensure_conda() {

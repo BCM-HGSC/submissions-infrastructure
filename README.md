@@ -6,8 +6,8 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 
 - some other team or application
 - submissions
-  - condarc (optional)
-  - conda_package_cache (optional)
+  - condarc -> infrastructure/current/condarc
+  - conda_package_cache
   - user_envs
     - hale
     - eskinner

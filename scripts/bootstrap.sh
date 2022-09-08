@@ -33,16 +33,16 @@ main() {
     fi
 
     msg "${BLUE}Read parameters:${NOFORMAT}"
-    msg "- verbose: '${verbose}'"
-    msg "- force: '${force}'"
-    msg "- target_dir: ${target_dir}"
+    dump_var verbose '- ' y
+    dump_var force '- ' y
+    dump_var target_dir '- '
     msg
 
     # script logic here
 
     mkdir -p "$target_dir"
     resolved_target=$(cd -P "$target_dir"; pwd)
-    msg "resolved_target: $resolved_target"
+    dump_var resolved_target
 
     check_os
     setup_target
@@ -151,6 +151,16 @@ cleanup() {
         rm -rf "$my_tmp_dir"
     fi
     msg ${BLUE}DONE${NOFORMAT}
+}
+
+dump_var() {
+    local var_name=$1
+    local prefix=${2-}
+    local quoting=${3-}
+    local quote=
+    [[ -n $quoting ]] && quote="'"
+    local value="${!var_name}"
+    msg "$prefix$var_name: $quote$value$quote"
 }
 
 msg() {

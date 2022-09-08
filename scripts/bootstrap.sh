@@ -55,7 +55,7 @@ main() {
         CONDA_PKGS_DIRS=$resolved_target/conda_package_cache \
         HOME=$resolved_target CONDARC=$resolved_target/condarc "$CONDA" info
     fi
-}
+} >&2
 
 parse_params() {
     # Set force and target_dir.
@@ -173,7 +173,7 @@ cleanup() {
         rm -rf "$my_tmp_dir"
     fi
     msg ${BLUE}DONE${NOFORMAT}
-}
+} >&2
 
 dump_var() {
     local var_name=$1

@@ -48,10 +48,6 @@ main() {
     setup_target
 
     ensure_conda
-    msg "Haz conda? CONDA='$CONDA'"
-    if [[ $verbose == 'y' ]]; then
-        "$CONDA" info # | fgrep -v -e __ -e user-agent -e build | cat -n
-    fi
 }
 
 parse_params() {
@@ -127,6 +123,10 @@ ensure_conda() {
             bash installer.sh -bp ./miniconda
             CONDA=$my_tmp_dir/miniconda/condabin/conda
         fi
+    fi
+    dump_var CONDA
+    if [[ $verbose == 'y' ]]; then
+        "$CONDA" info # | fgrep -v -e __ -e user-agent -e build | cat -n
     fi
 }
 

@@ -44,7 +44,6 @@ main() {
     resolved_target=$(cd -P "$target_dir"; pwd)
     dump_var resolved_target
 
-    check_os
     setup_target
 
     ensure_conda
@@ -106,6 +105,7 @@ ensure_conda() {
             # What do you do when you have no conda?
             # Fetch it from the server!
             setup_temp
+            check_os
             msg "fetch conda!!!"
             cd $my_tmp_dir
             url="https://repo.anaconda.com/miniconda/Miniconda3-latest-$plat-x86_64.sh"

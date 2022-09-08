@@ -1,0 +1,6 @@
+channels:
+  - conda-forge
+envs_dirs:
+  - $resolved_target/infrastructure/current/conda/envs
+pkgs_dirs:
+  - $resolved_target/conda_package_cache

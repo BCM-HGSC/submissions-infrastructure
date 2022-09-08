@@ -50,6 +50,11 @@ main() {
     setup_target
 
     ensure_conda
+    if [[ $verbose == 'y' ]]; then
+        CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs" \
+        CONDA_PKGS_DIRS=$resolved_target/conda_package_cache \
+        HOME=$resolved_target CONDARC=$resolved_target/condarc "$CONDA" info
+    fi
 }
 
 parse_params() {
@@ -91,12 +96,26 @@ setup_target() {
         fi
     fi
     mkdir -p conda_package_cache infrastructure user_envs
+    if ! ls -ld $resolved_target/.condarc; then
+        msg 'Creating .condarc symlink'
+        ln -s condarc .condarc
+    fi
+    if ! ls -ld $resolved_target/condarc; then
+        msg 'Creating condarc symlink'
+        ln -s infrastructure/current/condarc
+    fi
     cd infrastructure
     mkdir -p blue green staging testing blue/{bin,etc} blue/conda/{def,envs}
     ln -s blue current
     touch current/condarc
-    cd ..
-    ln -s infrastructure/current/condarc
+    write_condarc
+}
+
+write_condarc() {
+    cat << EOD > current/condarc
+channels:
+  - conda-forge
+EOD
 }
 
 ensure_conda() {
@@ -122,9 +141,6 @@ ensure_conda() {
         fi
     fi
     dump_var CONDA
-    if [[ $verbose == 'y' ]]; then
-        "$CONDA" info # | fgrep -v -e __ -e user-agent -e build | cat -n
-    fi
 }
 
 setup_temp() {
@@ -169,15 +185,15 @@ dump_var() {
     msg "$prefix$var_name: $quote$value$quote"
 }
 
-msg() {
-    echo >&2 -e "${1-}"
-}
-
 die() {
     local msg="${RED-}ERROR:${NOFORMAT-} $1"
     local code=${2-1} # default exit status 1
     msg "$msg"
     exit "$code"
+}
+
+msg() {
+    echo -e "${1-}"
 }
 
 setup_colors() {

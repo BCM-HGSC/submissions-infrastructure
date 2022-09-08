@@ -78,15 +78,6 @@ parse_params() {
     return 0
 }
 
-check_os() {
-    local u=$(uname)
-    case "$u" in
-        Darwin) plat=MacOSX ;;
-        Linux) plat=Linux ;;
-        *) die "unknown platform $u"
-    esac
-}
-
 setup_target() {
     cd "$resolved_target"
     if [[ -e infrastructure ]]; then
@@ -139,6 +130,15 @@ setup_temp() {
     template=$tmp_root/$USER/$(date +%Y-%m-%d)-XXXX
     my_tmp_dir=$(mktemp -d $template)
     # msg "my_tmp_dir=$my_tmp_dir"
+}
+
+check_os() {
+    local u=$(uname)
+    case "$u" in
+        Darwin) plat=MacOSX ;;
+        Linux) plat=Linux ;;
+        *) die "unknown platform $u"
+    esac
 }
 
 cleanup() {

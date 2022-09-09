@@ -112,7 +112,7 @@ setup_target() {
 }
 
 write_condarc() {
-    local condarc_template=$script_dir/../resources/condarc
+    local condarc_template=$script_dir/../resources/condarc.m4
     m4 -D RESOLVED_TARGET=$resolved_target $condarc_template > current/condarc
 }
 

@@ -96,10 +96,6 @@ setup_target() {
         fi
     fi
     mkdir -p conda_package_cache infrastructure user_envs
-    if ! ls -ld $resolved_target/.condarc; then
-        msg 'Creating .condarc symlink'
-        ln -s condarc .condarc
-    fi
     if ! ls -ld $resolved_target/condarc; then
         msg 'Creating condarc symlink'
         ln -s infrastructure/current/condarc

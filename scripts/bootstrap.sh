@@ -50,11 +50,6 @@ main() {
     setup_target
 
     ensure_conda
-    if [[ $verbose == 'y' ]]; then
-        CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs" \
-        CONDA_PKGS_DIRS=$resolved_target/conda_package_cache \
-        HOME=$resolved_target CONDARC=$resolved_target/condarc "$CONDA" info
-    fi
 } >&2
 
 parse_params() {
@@ -135,6 +130,11 @@ ensure_conda() {
         fi
     fi
     dump_var CONDA
+    if [[ $verbose == 'y' ]]; then
+        CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs" \
+        CONDA_PKGS_DIRS=$resolved_target/conda_package_cache \
+        HOME=$resolved_target CONDARC=$resolved_target/condarc "$CONDA" info
+    fi
 }
 
 setup_temp() {

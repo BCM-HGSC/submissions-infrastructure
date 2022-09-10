@@ -50,7 +50,7 @@ main() {
     setup_target
 
     ensure_conda
-}
+} >&2
 
 parse_params() {
     # Set force and target_dir.
@@ -161,7 +161,7 @@ cleanup() {
         rm -rf "$my_tmp_dir"
     fi
     msg ${BLUE}DONE${NOFORMAT}
-}
+} >&2
 
 dump_var() {
     local var_name=$1

@@ -57,7 +57,7 @@ main() {
 
     export CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs"
     export CONDA_PKGS_DIRS=$resolved_target/conda_package_cache
-    export HOME=$resolved_target
+    export HOME=$resolved_target/engine_home
     export CONDARC=$resolved_target/condarc
     if [[ $verbose == 'y' && -n $CONDA ]]; then
         "$CONDA" info
@@ -113,7 +113,7 @@ setup_target() {
             rm -rf infrastructure
         fi
     fi
-    mkdir -p conda_package_cache infrastructure user_envs
+    mkdir -p conda_package_cache engine_home infrastructure user_envs
     if ! ls -ld $resolved_target/condarc; then
         msg 'Creating condarc symlink'
         ln -s infrastructure/current/condarc
@@ -189,7 +189,7 @@ deploy_engine() {
         return
     fi
     msg deploy_engine
-    engine_path=$resolved_target/engine
+    engine_path=$resolved_target/engine_home/engine
     rm -rf $engine_path
     local offline_opt=
     [[ -n $offline ]] && offline_opt='--offline'

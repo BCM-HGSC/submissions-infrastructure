@@ -8,6 +8,11 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 - submissions
   - condarc -> infrastructure/current/condarc
   - conda_package_cache
+  - engine_home (non-user HOME containing machinery)
+    - .conda (implementation detail)
+    - .condrc (not present by default)
+    - Library (implementation detail)
+    - engine (conda environment containing conda and pip)
   - user_envs
     - hale
     - eskinner

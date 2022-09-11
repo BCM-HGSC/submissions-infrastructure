@@ -17,7 +17,8 @@ Available options:
 -v, --verbose       Print script debug info.
 --no-color          Turn off color output.
 --force             Force overwriting existing infrastructure!
--n, --no-installs   no conda or pip installs, just skeleton and condarc
+--offline           No internet usage
+-n, --no-installs   No conda or pip installs, just skeleton and condarc
 EOF
     exit
 }
@@ -36,6 +37,7 @@ main() {
     msg "${BLUE}Read parameters:${NOFORMAT}"
     dump_var verbose
     dump_var force
+    dump_var offline
     dump_var no_installs
     dump_var target_dir
     msg
@@ -44,6 +46,8 @@ main() {
     dump_var script_dir
 
     # script logic here
+    get_conda
+    export PATH=/usr/bin:/bin
 
     mkdir -p "$target_dir"
     resolved_target=$(cd -P "$target_dir"; pwd)
@@ -51,13 +55,11 @@ main() {
 
     setup_target
 
-    ensure_conda
-
     export CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs"
     export CONDA_PKGS_DIRS=$resolved_target/conda_package_cache
     export HOME=$resolved_target
     export CONDARC=$resolved_target/condarc
-    if [[ $verbose == 'y' ]]; then
+    if [[ $verbose == 'y' && -n $CONDA ]]; then
         "$CONDA" info
     fi
 
@@ -65,6 +67,7 @@ main() {
         exit
     fi
 
+    use_miniconda3_in_temp_for_conda_if_necessary
     deploy_engine
 } >&2
 
@@ -74,6 +77,7 @@ parse_params() {
     # default values of variables set from params
     verbose=
     force=
+    offline=
     no_installs=
 
     while :; do
@@ -82,6 +86,7 @@ parse_params() {
             -v | --verbose) verbose=${verbose}y ;;
             --no-color) NO_COLOR=y ;;
             --force) force=y ;;
+            --offline) offline=y ;;
             -n | --no-installs) no_installs=y ;;
             -?*) die "Unknown option: $1 (-h for help)" ;;
             *) break ;;
@@ -125,32 +130,37 @@ write_condarc() {
     m4 -D RESOLVED_TARGET=$resolved_target $condarc_template > current/condarc
 }
 
-ensure_conda() {
-    if [[ ! -x ${CONDA-} ]]; then
-        msg '$CONDA not set.'
-        CONDA=$(which conda) || msg "No conda in PATH."
-        if [[ -x $CONDA ]]; then
-            msg "Using conda at $CONDA"
-        else
-            if [[ -n $no_installs ]]; then
-                return
-            fi
-            # What do you do when you have no conda?
-            # What do you do when you have no conda?
-            # What do you do when you have no conda?
-            # Fetch it from the server!
-            setup_temp
-            check_os
-            msg "fetch conda!!!"
-            cd $my_tmp_dir
-            url="https://repo.anaconda.com/miniconda/Miniconda3-latest-$plat-x86_64.sh"
-            msg "fetching $url"
-            curl "$url" -o installer.sh
-            bash installer.sh -bp ./miniconda
-            CONDA=$my_tmp_dir/miniconda/condabin/conda
-        fi
+get_conda() {
+    # Set CONDA if not set and available in PATH.
+    : ${CONDA:=$(which conda)}  # Set CONDA if not set to conda in PATH
+    if [[ ! -x $CONDA ]]; then
+        warning "CONDA is not set, and no conda executable found in PATH."
     fi
     dump_var CONDA
+}
+
+use_miniconda3_in_temp_for_conda_if_necessary() {
+    # If CONDA is unset, ownload and install Miniconda3 in order to set CONDA.
+    if [[ ! -x ${CONDA-} ]]; then
+        if [[ -n $offline ]]; then
+            error "CONDA is not set, and we are offline"
+            return
+        fi
+        # What do you do when you have no conda?
+        # What do you do when you have no conda?
+        # What do you do when you have no conda?
+        # Fetch it from the server!
+        setup_temp
+        check_os
+        msg "Fetching conda..."
+        cd $my_tmp_dir
+        url="https://repo.anaconda.com/miniconda/Miniconda3-latest-$plat-x86_64.sh"
+        msg "fetching $url"
+        curl "$url" -o installer.sh
+        bash installer.sh -bp ./miniconda
+        CONDA=$my_tmp_dir/miniconda/condabin/conda
+        dump_var CONDA
+    fi
 }
 
 setup_temp() {
@@ -174,10 +184,19 @@ check_os() {
 }
 
 deploy_engine() {
+    if [[ ! -x $CONDA ]]; then
+        error "Cannot deploy engine, because there is no conda"
+        return
+    fi
     msg deploy_engine
     engine_path=$resolved_target/engine
     rm -rf $engine_path
-    $CONDA create -y -p $engine_path pip 
+    local offline_opt=
+    [[ -n $offline ]] && offline_opt='--offline'
+    $CONDA create $offline_opt -y -p $engine_path conda pip
+    export PATH=$engine_path/bin:$PATH
+    dump_var PATH
+    which conda
 }
 
 cleanup() {
@@ -199,10 +218,22 @@ dump_var() {
 }
 
 die() {
-    local msg="${RED-}ERROR:${NOFORMAT-} $1"
+    local msg="$1"
     local code=${2-1} # default exit status 1
-    msg "$msg"
+    critical "$msg"
     exit "$code"
+}
+
+critical() {
+    msg "${RED}CRITICAL${NOFORMAT}: $1"
+}
+
+error() {
+    msg "${RED}ERROR${NOFORMAT}: $1"
+}
+
+warning() {
+    msg "${ORANGE}WARNING${NOFORMAT}: $1"
 }
 
 msg() {

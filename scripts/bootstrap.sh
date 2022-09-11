@@ -51,10 +51,6 @@ main() {
 
     setup_target
 
-    if [[ -n $no_installs ]]; then
-        exit
-    fi
-
     ensure_conda
 
     export CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs"
@@ -63,6 +59,10 @@ main() {
     export CONDARC=$resolved_target/condarc
     if [[ $verbose == 'y' ]]; then
         "$CONDA" info
+    fi
+
+    if [[ -n $no_installs ]]; then
+        exit
     fi
 
     deploy_engine
@@ -132,6 +132,9 @@ ensure_conda() {
         if [[ -x $CONDA ]]; then
             msg "Using conda at $CONDA"
         else
+            if [[ -n $no_installs ]]; then
+                return
+            fi
             # What do you do when you have no conda?
             # What do you do when you have no conda?
             # What do you do when you have no conda?
@@ -172,7 +175,9 @@ check_os() {
 
 deploy_engine() {
     msg deploy_engine
-    $CONDA create -y -n engine pip 
+    engine_path=$resolved_target/engine
+    rm -rf $engine_path
+    $CONDA create -y -p $engine_path pip 
 }
 
 cleanup() {

@@ -34,10 +34,10 @@ main() {
     fi
 
     msg "${BLUE}Read parameters:${NOFORMAT}"
-    dump_var verbose '- ' y
-    dump_var force '- ' y
-    dump_var no_installs '- ' y
-    dump_var target_dir '- '
+    dump_var verbose
+    dump_var force
+    dump_var no_installs
+    dump_var target_dir
     msg
 
     script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
@@ -194,12 +194,8 @@ cleanup() {
 
 dump_var() {
     local var_name=$1
-    local prefix=${2-}
-    local quoting=${3-}
-    local quote=
-    [[ -n $quoting ]] && quote="'"
     local value="${!var_name}"
-    msg "$prefix$var_name: $quote$value$quote"
+    msg "$var_name=$value"
 }
 
 die() {

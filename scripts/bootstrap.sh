@@ -56,6 +56,16 @@ main() {
     fi
 
     ensure_conda
+
+    export CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs"
+    export CONDA_PKGS_DIRS=$resolved_target/conda_package_cache
+    export HOME=$resolved_target
+    export CONDARC=$resolved_target/condarc
+    if [[ $verbose == 'y' ]]; then
+        "$CONDA" info
+    fi
+
+    deploy_engine
 } >&2
 
 parse_params() {
@@ -138,11 +148,6 @@ ensure_conda() {
         fi
     fi
     dump_var CONDA
-    if [[ $verbose == 'y' ]]; then
-        CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs" \
-        CONDA_PKGS_DIRS=$resolved_target/conda_package_cache \
-        HOME=$resolved_target CONDARC=$resolved_target/condarc "$CONDA" info
-    fi
 }
 
 setup_temp() {
@@ -163,6 +168,11 @@ check_os() {
         Linux) plat=Linux ;;
         *) die "unknown platform $u"
     esac
+}
+
+deploy_engine() {
+    msg deploy_engine
+    $CONDA create -y -n engine pip 
 }
 
 cleanup() {

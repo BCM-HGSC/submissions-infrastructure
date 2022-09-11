@@ -13,10 +13,11 @@ the --force option is applied.
 
 Available options:
 
--h, --help      Print this help and exit.
--v, --verbose   Print script debug info.
---no-color      Turn off color output.
---force         Force overwriting existing infrastructure!
+-h, --help          Print this help and exit.
+-v, --verbose       Print script debug info.
+--no-color          Turn off color output.
+--force             Force overwriting existing infrastructure!
+-n, --no-installs   no conda or pip installs, just skeleton and condarc
 EOF
     exit
 }
@@ -35,6 +36,7 @@ main() {
     msg "${BLUE}Read parameters:${NOFORMAT}"
     dump_var verbose '- ' y
     dump_var force '- ' y
+    dump_var no_installs '- ' y
     dump_var target_dir '- '
     msg
 
@@ -49,6 +51,10 @@ main() {
 
     setup_target
 
+    if [[ -n $no_installs ]]; then
+        exit
+    fi
+
     ensure_conda
 } >&2
 
@@ -56,8 +62,9 @@ parse_params() {
     # Set force and target_dir.
 
     # default values of variables set from params
-    force=
     verbose=
+    force=
+    no_installs=
 
     while :; do
         case "${1-}" in
@@ -65,6 +72,7 @@ parse_params() {
             -v | --verbose) verbose=${verbose}y ;;
             --no-color) NO_COLOR=y ;;
             --force) force=y ;;
+            -n | --no-installs) no_installs=y ;;
             -?*) die "Unknown option: $1 (-h for help)" ;;
             *) break ;;
         esac

@@ -11,6 +11,9 @@ subdirectory named "conda_package_cache" and another subdirectory named
 "infrastructure". It is an error if "infrastructure" already exists unless
 the --force option is applied.
 
+Following the creation of the infrastructure directory, this script will create
+engine_home if it does not already exist and then install or update the engine.
+
 Available options:
 
 -h, --help          Print this help and exit.
@@ -19,6 +22,13 @@ Available options:
 --force             Force overwriting existing infrastructure!
 --offline           No internet usage
 -n, --no-installs   No conda or pip installs, just skeleton and condarc
+
+Environment:
+CONDA: optional path to a conda executable
+PATH: will be searched for "conda" if CONDA is not set
+
+If a conda executable is not set by either PATH or CONDA, this script will
+download the latest version of Miniconda3 into a temporary directory and use that.
 EOF
     exit
 }

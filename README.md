@@ -12,7 +12,8 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
     - .conda (implementation detail)
     - .condrc (not present by default)
     - Library (implementation detail)
-    - engine (conda environment containing conda and pip)
+    - engine_a (conda environment containing conda and pip)
+    - engine -> engine_a (or engine_b if we re-bootstrapped the engine)
   - user_envs
     - hale
     - eskinner

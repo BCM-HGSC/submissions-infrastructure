@@ -184,9 +184,14 @@ check_os() {
 }
 
 deploy_engine() {
-    if [[ ! -x $CONDA ]]; then
-        error "Cannot deploy engine, because there is no conda"
-        return
+    [[ -x $CONDA ]] || die "Cannot deploy engine, because there is no conda"
+    if [[ -e $resolved_target/engine_home ]]; then
+        if [[ -z $force ]]; then
+            die "$target_dir/engine_home already exists"
+        else
+            msg "overwriting $resolved_target/engine_home"
+            rm -rf $resolved_target/engine_home
+        fi
     fi
     msg deploy_engine
     engine_path=$resolved_target/engine_home/engine

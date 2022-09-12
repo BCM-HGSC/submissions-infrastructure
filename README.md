@@ -43,6 +43,11 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
   - etc -> infrastructure/current/etc
 - some other team or application
 
+## Execution
+
+1. Clone or download the software.
+2. `bash /path/to/submissions-infrastructure/scripts/bootstrap.sh -h`
+
 ## Sources
 
 - https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh

@@ -8,6 +8,7 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 - submissions
   - condarc -> infrastructure/current/condarc
   - conda_package_cache
+  - config (any configuration for installing/updating infrastructure)
   - engine_home (non-user HOME containing machinery)
     - .conda (implementation detail)
     - .condrc (not present by default)
@@ -21,7 +22,7 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
   - infrastructure
     - blue
       - bin
-      - etc
+      - etc (all automatically generated or installed "config" items)
       - condarc (master file)
       - conda
         - defs (YAML definitions of the envs)
@@ -39,6 +40,7 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
     - staging
     - testing
     - current (symlink to blue or green)
+  - etc -> infrastructure/current/etc
 - some other team or application
 
 ## Sources

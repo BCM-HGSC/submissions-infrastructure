@@ -185,6 +185,16 @@ check_os() {
 
 deploy_engine() {
     [[ -x $CONDA ]] || die "Cannot deploy engine, because there is no conda"
+    dump_var HOME
+    PYTHON="$($CONDA info --base)"/bin/python3
+    dump_var PYTHON
+    export CONDA
+    export HOME
+    cd "$HOME"
+    local offline_opt=
+    [[ -n $offline ]] && offline_opt='--offline'
+    exec "$PYTHON" "$script_dir"/bootstrap_engine.py $offline_opt
+    return
     if [[ -e $resolved_target/engine_home ]]; then
         if [[ -z $force ]]; then
             die "$target_dir/engine_home already exists"
@@ -196,8 +206,6 @@ deploy_engine() {
     msg deploy_engine
     engine_path=$resolved_target/engine_home/engine
     rm -rf $engine_path
-    local offline_opt=
-    [[ -n $offline ]] && offline_opt='--offline'
     $CONDA create $offline_opt -y -p $engine_path conda pip
     export PATH=$engine_path/bin:$PATH
     dump_var PATH

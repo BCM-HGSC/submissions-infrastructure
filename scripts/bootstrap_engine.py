@@ -5,41 +5,27 @@ from subprocess import run
 from sys import argv, executable, exit
 
 
-def main():
+def main(run_function=run):
     print()
-    executable_path = Path(executable)
     conda_opts = argv[1:]
     print(f"{conda_opts=}")
-    # for k in sorted(environ):
-    #     if "conda" in k.lower():
-    #         print(k, "=", environ[k])
     home = Path().resolve()
     env = dict(
         HOME=home,
         CONDARC=env_path("CONDARC"),
     )
+    executable_path = Path(executable)
     conda = env_path("CONDA")
-    print(home)
-    print()
-    run("/usr/bin/env", env=env)
-    print()
-    result = run([conda, "info"], env=env)
+    run_function("/usr/bin/env", env=env)
+    run_function([conda, "info"], env=env)
     engine_path = rotate_engine_directories(home, executable_path, conda)
-    print(engine_path)
-    return
-
-
     symlink = home / "engine"
-    engine_path = home / "engine_a"
-    print(symlink.exists())
     conda_command = [conda, "create"] + conda_opts
     conda_command +=  f"-y -p {engine_path} conda pip".split()
-    result = run(conda_command)
-    if result.returncode:
-        return result.returncode
+    run_function(conda_command, check=True)
     if symlink.is_symlink():
         symlink.unlink()
-    symlink.symlink_to("engine_a")
+    symlink.symlink_to(engine_path)
 
 
 def env_path(key: str) -> Path:

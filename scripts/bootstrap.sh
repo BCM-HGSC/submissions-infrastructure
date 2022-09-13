@@ -44,7 +44,7 @@ main() {
         set -x
     fi
 
-    msg "${BLUE}Read parameters:${NOFORMAT}"
+    info "${BLUE}Read parameters:${NOFORMAT}"
     dump_var VERBOSE
     dump_var FORCE
     dump_var OFFLINE
@@ -56,8 +56,6 @@ main() {
     dump_var script_dir
 
     # script logic here
-    get_conda
-    export PATH=/usr/bin:/bin
 
     mkdir -p "$TARGET_DIR"
     resolved_target=$(cd -P "$TARGET_DIR"; pwd)
@@ -65,21 +63,25 @@ main() {
 
     setup_target
 
+    if [[ -n $NO_INSTALLS ]]; then
+        exit
+    fi
+ 
+    get_conda
+
     # Environment variables used by conda when creating the engine.
     export CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs"
     export CONDA_PKGS_DIRS=$resolved_target/conda_package_cache
     export HOME=$resolved_target/engine_home
     export CONDARC=$resolved_target/condarc
 
-    if [[ $VERBOSE == 'y' && -n $CONDA ]]; then
+    use_miniconda3_in_temp_for_conda_if_necessary
+
+    if [[ $VERBOSE == 'y' && -x $CONDA ]]; then
+        ls -ld "$CONDA"
         "$CONDA" info
     fi
 
-    if [[ -n $NO_INSTALLS ]]; then
-        exit
-    fi
-
-    use_miniconda3_in_temp_for_conda_if_necessary
     deploy_engine
 } >&2
 
@@ -110,7 +112,7 @@ parse_params() {
 
     [[ $# -eq 0 ]] || die "unused positional parameters: $@ (-h for help)"
 
-    return 0
+    return
 }
 
 setup_target() {
@@ -119,13 +121,13 @@ setup_target() {
         if [[ -z $FORCE ]]; then
             die "$TARGET_DIR/infrastructure already exists"
         else
-            msg "overwriting $resolved_target/infrastructure"
+            warning "overwriting $resolved_target/infrastructure"
             rm -rf infrastructure
         fi
     fi
     mkdir -p conda_package_cache engine_home infrastructure user_envs
-    if ! ls -ld $resolved_target/condarc; then
-        msg 'Creating condarc symlink'
+    if ! ls $resolved_target/condarc &> /dev/null; then
+        info 'Creating condarc symlink'
         ln -s infrastructure/current/condarc
     fi
     cd infrastructure
@@ -142,11 +144,24 @@ write_condarc() {
 
 get_conda() {
     # Set CONDA if not set and available in PATH.
-    : ${CONDA:=$(which conda)}  # Set CONDA if not set to conda in PATH
-    if [[ ! -x $CONDA ]]; then
-        warning "CONDA is not set, and no conda executable found in PATH."
+    if [[ ! -x "$CONDA" ]]; then
+        if [[ -n "$CONDA" ]]; then
+            warning "CONDA=$CONDA"
+            warning "Supplied vaule of CONDA is not executable."
+        fi
+        CONDA=$(command -v conda || :)  # will be "" if not found in PATH
+        if [[ -n "$CONDA" ]]; then
+            if [[ ! -x "$CONDA" ]]; then
+                warning "CONDA from PATH is not executable."
+                warning "CONDA=$CONDA (bad value in PATH)"
+            else
+                dump_var CONDA
+            fi
+        else
+            warning "No conda in PATH."
+            warning "PATH=$PATH"
+        fi
     fi
-    dump_var CONDA
 }
 
 use_miniconda3_in_temp_for_conda_if_necessary() {
@@ -162,10 +177,10 @@ use_miniconda3_in_temp_for_conda_if_necessary() {
         # Fetch it from the server!
         setup_temp
         check_os
-        msg "Fetching conda..."
+        info "Fetching conda..."
         cd $my_tmp_dir
         url="https://repo.anaconda.com/miniconda/Miniconda3-latest-$plat-x86_64.sh"
-        msg "fetching $url"
+        info "fetching $url"
         curl "$url" -o installer.sh
         bash installer.sh -bp ./miniconda
         CONDA=$my_tmp_dir/miniconda/condabin/conda
@@ -175,13 +190,13 @@ use_miniconda3_in_temp_for_conda_if_necessary() {
 
 setup_temp() {
     tmp_root=$(dirname $(mktemp -u))
-    # msg "tmp_root=$tmp_root"
+    debug "tmp_root=$tmp_root"
     user_root=$tmp_root/$USER
-    # msg "user_root=$user_root"
+    debug "user_root=$user_root"
     mkdir -p $user_root
     template=$tmp_root/$USER/$(date +%Y-%m-%d)-XXXX
     my_tmp_dir=$(mktemp -d $template)
-    # msg "my_tmp_dir=$my_tmp_dir"
+    debug "my_tmp_dir=$my_tmp_dir"
 }
 
 check_os() {
@@ -198,29 +213,28 @@ deploy_engine() {
     dump_var HOME
     PYTHON="$($CONDA info --base)"/bin/python3
     dump_var PYTHON
-    export CONDA
-    export OFFLINE
+    export CONDA OFFLINE VERBOSE
     cd "$HOME"
     msg
-    exec "$PYTHON" "$script_dir"/bootstrap_engine.py
+    "$PYTHON" "$script_dir"/bootstrap_engine.py
 }
 
 cleanup() {
     trap - SIGINT SIGTERM ERR EXIT
     # script cleanup here
     cd
-    msg ${BLUE}CLEANUP${NOFORMAT}
+    info ${BLUE}CLEANUP${NOFORMAT}
     if [[ -e ${my_tmp_dir-} ]]; then
-        msg "rm -rf $my_tmp_dir"
+        info "rm -rf $my_tmp_dir"
         rm -rf "$my_tmp_dir"
     fi
-    msg ${BLUE}DONE${NOFORMAT}
+    info ${BLUE}DONE${NOFORMAT}
 } >&2
 
 dump_var() {
     local var_name=$1
     local value="${!var_name}"
-    msg "$var_name=$value"
+    info "$var_name=$value"
 }
 
 die() {
@@ -240,6 +254,16 @@ error() {
 
 warning() {
     msg "${ORANGE}WARNING${NOFORMAT}: $1"
+}
+
+info() {
+    msg "${BLUE}INFO${NOFORMAT}: $1"
+}
+
+debug() {
+    if [[ -n $VERBOSE ]]; then
+        msg "${GREEN}DEBUG${NOFORMAT}: $1"
+    fi
 }
 
 msg() {

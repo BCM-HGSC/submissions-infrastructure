@@ -12,41 +12,55 @@ HOME: directory used by conda as the "home directory" for configuration
 
 Optional environment variables:
 OFFLINE: if set run conda create with the --offline option
+VERBOSE: if set, logging level is DEBUG, otherwise INFO
 """
 
+from logging import DEBUG, INFO, StreamHandler, basicConfig, error, critical, info, debug
 from os import environ
 from pathlib import Path
 from shutil import rmtree
 from subprocess import run
-from sys import argv, executable, exit
+from sys import argv, executable, exit, stderr
+
+try:
+    from rich.logging import RichHandler
+    ROOT_HANDLER = RichHandler(show_time=False)
+    ROOT_FORMAT = "%(message)s"
+except:
+    ROOT_HANDLER = StreamHandler()
+    ROOT_FORMAT = "%(levelname)s: %(message)s"
 
 
 def main(run_function=run):
-    print(f"INFO: starting {__file__}")
+    config_logging()
+    info(f"starting {__file__}")
     if len(argv) > 1:
-        print(f"CRITICAL: unknown command-line parameters: {argv[1:]}")
+        critical(f"unknown command-line parameters: {argv[1:]}")
         return 2
     home = Path().resolve()
+    executable_path = Path(executable)
+    conda = env_path("CONDA")
+    engine_path = rotate_engine_directories(home, executable_path, conda)
+    symlink = home / "engine"
+    conda_opts = ["--offline"] if environ["OFFLINE"] else []
+    debug(f"{conda_opts=}")
+    conda_command = [conda, "create"] + conda_opts
+    conda_command +=  f"-y -p {engine_path} conda pip rich".split()
+    info(f"{conda_command=}")
     env = dict(
         HOME=home,
         CONDARC=env_path("CONDARC"),
     )
-    executable_path = Path(executable)
-    conda = env_path("CONDA")
-    run_function("/usr/bin/env", env=env)
-    run_function([conda, "info"], env=env)
-    engine_path = rotate_engine_directories(home, executable_path, conda)
-    symlink = home / "engine"
-    conda_opts = ["--offline"] if environ["OFFLINE"] else []
-    print(f"{conda_opts=}")
-    conda_command = [conda, "create"] + conda_opts
-    conda_command +=  f"-y -p {engine_path} conda pip".split()
-    print(f"{conda_command=}")
-    # return
-    run_function(conda_command, check=True)
+    info(f"{env=}")
+    run_function(conda_command, check=True, env=env)
     if symlink.is_symlink():
         symlink.unlink()
     symlink.symlink_to(engine_path)
+
+
+def config_logging():
+    level = DEBUG if environ["VERBOSE"] else INFO
+    basicConfig(level=level, format=ROOT_FORMAT, handlers=[ROOT_HANDLER])
 
 
 def env_path(key: str) -> Path:

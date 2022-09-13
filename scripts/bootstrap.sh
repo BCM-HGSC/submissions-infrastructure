@@ -46,22 +46,13 @@ main() {
     fi
 
     info "${BLUE}Read parameters:${NOFORMAT}"
-    dump_var VERBOSE
-    dump_var FORCE
-    dump_var OFFLINE
-    dump_var KEEP
-    dump_var NO_INSTALLS
-    dump_var TARGET_DIR
+    dump_vars VERBOSE FORCE OFFLINE KEEP NO_INSTALLS TARGET_DIR
     msg
 
     script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
-    dump_var script_dir
-
-    # script logic here
-
     mkdir -p "$TARGET_DIR"
     resolved_target=$(cd -P "$TARGET_DIR"; pwd)
-    dump_var resolved_target
+    dump_vars script_dir resolved_target
 
     setup_target
  
@@ -75,23 +66,27 @@ main() {
 
     use_miniconda3_in_temp_for_conda_if_necessary
 
-    if [[ $VERBOSE == 'y' && -x $CONDA ]]; then
-        ls -ld "$CONDA"
-        "$CONDA" info
-    fi
-
     if [[ -z $KEEP ]]; then
         deploy_engine
     fi
 
-    # New values
+    msg
+    info "New values"
     CONDA="$HOME"/engine/bin/conda
     PYTHON="$HOME"/engine/bin/python3
+    dump_vars CONDA PYTHON
+
+    if [[ $VERBOSE == 'y' && -x $CONDA ]]; then
+        ls -ld "$CONDA"
+        "$CONDA" info
+    fi
     # $PYTHON --help
 
     if [[ -n $NO_INSTALLS ]]; then
         exit
     fi
+
+    warning "TODO add team environments"
 } >&2
 
 parse_params() {
@@ -249,6 +244,10 @@ cleanup() {
     fi
     info ${BLUE}DONE${NOFORMAT}
 } >&2
+
+dump_vars() {
+    for name in $@; do dump_var $name; done
+}
 
 dump_var() {
     local var_name=$1

@@ -50,9 +50,10 @@ main() {
     msg
 
     script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+    resources_dir=$(cd $script_dir/../resources && pwd -P)
     mkdir -p "$TARGET_DIR"
     resolved_target=$(cd -P "$TARGET_DIR"; pwd)
-    dump_vars script_dir resolved_target
+    dump_vars script_dir resources_dir resolved_target
 
     setup_target
  
@@ -80,7 +81,6 @@ main() {
         ls -ld "$CONDA"
         "$CONDA" info
     fi
-    # $PYTHON --help
 
     if [[ -n $NO_INSTALLS ]]; then
         exit
@@ -144,7 +144,7 @@ setup_target() {
 }
 
 write_condarc() {
-    local condarc_template=$script_dir/../resources/condarc.m4
+    local condarc_template=$resources_dir/condarc.m4
     m4 -D RESOLVED_TARGET=$resolved_target $condarc_template > current/condarc
 }
 

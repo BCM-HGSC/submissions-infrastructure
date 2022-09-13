@@ -1,3 +1,16 @@
+"""
+Python script to bootstrap or rotate the infrastructure maintenance angine.
+
+This script takes no command-line parameters.
+
+Required environment variables:
+CONDA: location of the conda executable
+HOME: directory used by conda as the "home directory" for configuration
+
+Optional environment variables:
+offline: if set run conda create with the --offline option
+"""
+
 from os import environ
 from pathlib import Path
 from shutil import rmtree
@@ -6,9 +19,10 @@ from sys import argv, executable, exit
 
 
 def main(run_function=run):
-    print()
-    conda_opts = argv[1:]
-    print(f"{conda_opts=}")
+    print(f"INFO: starting {__file__}")
+    if len(argv) > 1:
+        print(f"CRITICAL: unknown command-line parameters: {argv[1:]}")
+        return 2
     home = Path().resolve()
     env = dict(
         HOME=home,
@@ -20,8 +34,12 @@ def main(run_function=run):
     run_function([conda, "info"], env=env)
     engine_path = rotate_engine_directories(home, executable_path, conda)
     symlink = home / "engine"
+    conda_opts = ["--offline"] if environ["offline"] else []
+    print(f"{conda_opts=}")
     conda_command = [conda, "create"] + conda_opts
     conda_command +=  f"-y -p {engine_path} conda pip".split()
+    print(f"{conda_command=}")
+    return
     run_function(conda_command, check=True)
     if symlink.is_symlink():
         symlink.unlink()

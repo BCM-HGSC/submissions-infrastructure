@@ -200,10 +200,10 @@ deploy_engine() {
     dump_var PYTHON
     export CONDA
     export HOME
+    export offline
     cd "$HOME"
-    local offline_opt=
-    [[ -n $offline ]] && offline_opt='--offline'
-    exec "$PYTHON" "$script_dir"/bootstrap_engine.py $offline_opt
+    msg
+    exec "$PYTHON" "$script_dir"/bootstrap_engine.py
 }
 
 cleanup() {

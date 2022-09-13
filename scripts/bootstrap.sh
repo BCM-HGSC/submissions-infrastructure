@@ -49,21 +49,21 @@ main() {
     dump_vars VERBOSE FORCE OFFLINE KEEP NO_INSTALLS TARGET_DIR
     msg
 
-    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
-    resources_dir=$(cd $script_dir/../resources && pwd -P)
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+    RESOURCES_DIR=$(cd $SCRIPT_DIR/../resources && pwd -P)
     mkdir -p "$TARGET_DIR"
-    resolved_target=$(cd -P "$TARGET_DIR"; pwd)
-    dump_vars script_dir resources_dir resolved_target
+    RESOLVED_TARGET=$(cd -P "$TARGET_DIR"; pwd)
+    dump_vars SCRIPT_DIR RESOURCES_DIR RESOLVED_TARGET
 
     setup_target
  
     get_conda
 
     # Environment variables used by conda when creating the engine.
-    export CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs"
-    export CONDA_PKGS_DIRS="$resolved_target"/conda_package_cache
-    export HOME="$resolved_target"/engine_home
-    export CONDARC="$resolved_target"/condarc
+    export CONDA_ENVS_DIRS="$RESOLVED_TARGET/infrastructure/current/conda/envs"
+    export CONDA_PKGS_DIRS="$RESOLVED_TARGET"/conda_package_cache
+    export HOME="$RESOLVED_TARGET"/engine_home
+    export CONDARC="$RESOLVED_TARGET"/condarc
 
     use_miniconda3_in_temp_for_conda_if_necessary
 
@@ -122,17 +122,17 @@ parse_params() {
 }
 
 setup_target() {
-    cd "$resolved_target"
+    cd "$RESOLVED_TARGET"
     if [[ -e infrastructure ]]; then
         if [[ -z $FORCE ]]; then
             die "$TARGET_DIR/infrastructure already exists"
         else
-            warning "overwriting $resolved_target/infrastructure"
+            warning "overwriting $RESOLVED_TARGET/infrastructure"
             rm -rf infrastructure
         fi
     fi
     mkdir -p conda_package_cache engine_home infrastructure user_envs
-    if ! ls $resolved_target/condarc &> /dev/null; then
+    if ! ls $RESOLVED_TARGET/condarc &> /dev/null; then
         info 'Creating condarc symlink'
         ln -s infrastructure/current/condarc
     fi
@@ -144,13 +144,13 @@ setup_target() {
 }
 
 write_condarc() {
-    local condarc_template=$resources_dir/condarc.m4
-    m4 -D RESOLVED_TARGET=$resolved_target $condarc_template > current/condarc
+    local condarc_template=$RESOURCES_DIR/condarc.m4
+    m4 -D RESOLVED_TARGET=$RESOLVED_TARGET $condarc_template > current/condarc
 }
 
 get_conda() {
     # Set CONDA if not set and available in PATH.
-    if [[ ! -x "$CONDA" ]]; then
+    if [[ ! -x "${CONDA:=}" ]]; then
         if [[ -n "$CONDA" ]]; then
             warning "CONDA=$CONDA"
             warning "Supplied vaule of CONDA is not executable."
@@ -222,7 +222,6 @@ deploy_engine() {
     export CONDA OFFLINE VERBOSE
     cd "$HOME"
     msg
-    # "$PYTHON" "$script_dir"/bootstrap_engine.py
     run_python bootstrap_engine.py
 }
 
@@ -230,7 +229,7 @@ run_python() {
     info "run_python $@"
     local script_name=$1
     shift
-    "$PYTHON" "$script_dir"/$script_name "$@"
+    "$PYTHON" "$SCRIPT_DIR"/$script_name "$@"
 }
 
 cleanup() {

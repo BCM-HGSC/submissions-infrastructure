@@ -40,16 +40,16 @@ main() {
 
     trap cleanup SIGINT SIGTERM ERR EXIT
 
-    if [[ $verbose == 'yy' ]]; then
+    if [[ $VERBOSE == 'yy' ]]; then
         set -x
     fi
 
     msg "${BLUE}Read parameters:${NOFORMAT}"
-    dump_var verbose
-    dump_var force
-    dump_var offline
-    dump_var no_installs
-    dump_var target_dir
+    dump_var VERBOSE
+    dump_var FORCE
+    dump_var OFFLINE
+    dump_var NO_INSTALLS
+    dump_var TARGET_DIR
     msg
 
     script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
@@ -59,21 +59,23 @@ main() {
     get_conda
     export PATH=/usr/bin:/bin
 
-    mkdir -p "$target_dir"
-    resolved_target=$(cd -P "$target_dir"; pwd)
+    mkdir -p "$TARGET_DIR"
+    resolved_target=$(cd -P "$TARGET_DIR"; pwd)
     dump_var resolved_target
 
     setup_target
 
+    # Environment variables used by conda when creating the engine.
     export CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs"
     export CONDA_PKGS_DIRS=$resolved_target/conda_package_cache
     export HOME=$resolved_target/engine_home
     export CONDARC=$resolved_target/condarc
-    if [[ $verbose == 'y' && -n $CONDA ]]; then
+
+    if [[ $VERBOSE == 'y' && -n $CONDA ]]; then
         "$CONDA" info
     fi
 
-    if [[ -n $no_installs ]]; then
+    if [[ -n $NO_INSTALLS ]]; then
         exit
     fi
 
@@ -82,22 +84,20 @@ main() {
 } >&2
 
 parse_params() {
-    # Set force and target_dir.
-
     # default values of variables set from params
-    verbose=
-    force=
-    offline=
-    no_installs=
+    VERBOSE=
+    FORCE=
+    OFFLINE=
+    NO_INSTALLS=
 
     while :; do
         case "${1-}" in
             -h | --help) usage ;;
-            -v | --verbose) verbose=${verbose}y ;;
+            -v | --verbose) VERBOSE=${VERBOSE}y ;;
             --no-color) NO_COLOR=y ;;
-            --force) force=y ;;
-            --offline) offline=y ;;
-            -n | --no-installs) no_installs=y ;;
+            --force) FORCE=y ;;
+            --offline) OFFLINE=y ;;
+            -n | --no-installs) NO_INSTALLS=y ;;
             -?*) die "Unknown option: $1 (-h for help)" ;;
             *) break ;;
         esac
@@ -105,7 +105,7 @@ parse_params() {
     done
 
     [[ $# -eq 0 ]] && die "missing value for TARGET_DIR (-h for help)"
-    target_dir="$1"
+    TARGET_DIR="$1"
     shift
 
     [[ $# -eq 0 ]] || die "unused positional parameters: $@ (-h for help)"
@@ -116,8 +116,8 @@ parse_params() {
 setup_target() {
     cd "$resolved_target"
     if [[ -e infrastructure ]]; then
-        if [[ -z $force ]]; then
-            die "$target_dir/infrastructure already exists"
+        if [[ -z $FORCE ]]; then
+            die "$TARGET_DIR/infrastructure already exists"
         else
             msg "overwriting $resolved_target/infrastructure"
             rm -rf infrastructure
@@ -152,7 +152,7 @@ get_conda() {
 use_miniconda3_in_temp_for_conda_if_necessary() {
     # If CONDA is unset, ownload and install Miniconda3 in order to set CONDA.
     if [[ ! -x ${CONDA-} ]]; then
-        if [[ -n $offline ]]; then
+        if [[ -n $OFFLINE ]]; then
             error "CONDA is not set, and we are offline"
             return
         fi
@@ -199,8 +199,7 @@ deploy_engine() {
     PYTHON="$($CONDA info --base)"/bin/python3
     dump_var PYTHON
     export CONDA
-    export HOME
-    export offline
+    export OFFLINE
     cd "$HOME"
     msg
     exec "$PYTHON" "$script_dir"/bootstrap_engine.py

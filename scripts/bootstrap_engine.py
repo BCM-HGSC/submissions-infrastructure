@@ -5,10 +5,13 @@ This script takes no command-line parameters.
 
 Required environment variables:
 CONDA: location of the conda executable
+CONDARC: location of the condarc configuration file
+
+Note that this variable is set from the current working directory:
 HOME: directory used by conda as the "home directory" for configuration
 
 Optional environment variables:
-offline: if set run conda create with the --offline option
+OFFLINE: if set run conda create with the --offline option
 """
 
 from os import environ
@@ -34,12 +37,12 @@ def main(run_function=run):
     run_function([conda, "info"], env=env)
     engine_path = rotate_engine_directories(home, executable_path, conda)
     symlink = home / "engine"
-    conda_opts = ["--offline"] if environ["offline"] else []
+    conda_opts = ["--offline"] if environ["OFFLINE"] else []
     print(f"{conda_opts=}")
     conda_command = [conda, "create"] + conda_opts
     conda_command +=  f"-y -p {engine_path} conda pip".split()
     print(f"{conda_command=}")
-    return
+    # return
     run_function(conda_command, check=True)
     if symlink.is_symlink():
         symlink.unlink()

@@ -21,6 +21,7 @@ Available options:
 --no-color          Turn off color output.
 --force             Force overwriting existing infrastructure!
 --offline           No internet usage
+-k, --keep          Keep and use current deployment engine
 -n, --no-installs   No conda or pip installs, just skeleton and condarc
 
 Environment:
@@ -48,6 +49,7 @@ main() {
     dump_var VERBOSE
     dump_var FORCE
     dump_var OFFLINE
+    dump_var KEEP
     dump_var NO_INSTALLS
     dump_var TARGET_DIR
     msg
@@ -62,18 +64,14 @@ main() {
     dump_var resolved_target
 
     setup_target
-
-    if [[ -n $NO_INSTALLS ]]; then
-        exit
-    fi
  
     get_conda
 
     # Environment variables used by conda when creating the engine.
     export CONDA_ENVS_DIRS="$resolved_target/infrastructure/current/conda/envs"
-    export CONDA_PKGS_DIRS=$resolved_target/conda_package_cache
-    export HOME=$resolved_target/engine_home
-    export CONDARC=$resolved_target/condarc
+    export CONDA_PKGS_DIRS="$resolved_target"/conda_package_cache
+    export HOME="$resolved_target"/engine_home
+    export CONDARC="$resolved_target"/condarc
 
     use_miniconda3_in_temp_for_conda_if_necessary
 
@@ -82,7 +80,18 @@ main() {
         "$CONDA" info
     fi
 
-    deploy_engine
+    if [[ -z $KEEP ]]; then
+        deploy_engine
+    fi
+
+    # New values
+    CONDA="$HOME"/engine/bin/conda
+    PYTHON="$HOME"/engine/bin/python3
+    # $PYTHON --help
+
+    if [[ -n $NO_INSTALLS ]]; then
+        exit
+    fi
 } >&2
 
 parse_params() {
@@ -90,6 +99,7 @@ parse_params() {
     VERBOSE=
     FORCE=
     OFFLINE=
+    KEEP=
     NO_INSTALLS=
 
     while :; do
@@ -99,6 +109,7 @@ parse_params() {
             --no-color) NO_COLOR=y ;;
             --force) FORCE=y ;;
             --offline) OFFLINE=y ;;
+            -k | --keep) KEEP=y ;;
             -n | --no-installs) NO_INSTALLS=y ;;
             -?*) die "Unknown option: $1 (-h for help)" ;;
             *) break ;;
@@ -216,7 +227,15 @@ deploy_engine() {
     export CONDA OFFLINE VERBOSE
     cd "$HOME"
     msg
-    "$PYTHON" "$script_dir"/bootstrap_engine.py
+    # "$PYTHON" "$script_dir"/bootstrap_engine.py
+    run_python bootstrap_engine.py
+}
+
+run_python() {
+    info "run_python $@"
+    local script_name=$1
+    shift
+    "$PYTHON" "$script_dir"/$script_name "$@"
 }
 
 cleanup() {

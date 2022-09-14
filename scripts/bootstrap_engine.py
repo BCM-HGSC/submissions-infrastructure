@@ -40,12 +40,15 @@ def main(run_function=run):
     home = Path().resolve()
     executable_path = Path(executable)
     conda = env_path("CONDA")
+    engine_yaml = Path(__file__).parent.parent / "resources/engine.yaml"
+    info(f"{engine_yaml=}")
+    assert engine_yaml.is_file()
     engine_path = rotate_engine_directories(home, executable_path, conda)
     symlink = home / "engine"
     conda_opts = ["--offline"] if environ["OFFLINE"] else []
     debug(f"{conda_opts=}")
-    conda_command = [conda, "create"] + conda_opts
-    conda_command +=  f"-y -p {engine_path} conda pip rich".split()
+    conda_command = [conda, "env", "create"] + conda_opts
+    conda_command +=  ["-p", engine_path, "-f", engine_yaml]
     info(f"{conda_command=}")
     env = dict(
         HOME=home,

@@ -1,0 +1,14 @@
+channels:
+  - conda-forge
+dependencies:
+  - bat
+  - broot
+  - exa
+  - fzf
+  - git-lfs
+  - lftp
+  - mc
+  - ncdu
+  - pstree
+  - pv
+  - tree

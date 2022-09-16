@@ -1,0 +1,14 @@
+channels:
+  - conda-forge
+dependencies:
+  - coreutils
+  - diffutils
+  - dos2unix
+  - emacs
+  - findutils
+  - gawk
+  - htop
+  - jq
+  - sed
+  - tmux
+  - wget

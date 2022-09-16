@@ -1,0 +1,12 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bcftools
+  - bedtools
+  - gatk
+  - htslib
+  - picard
+  - samtools
+  - seqtk
+  - vcftools

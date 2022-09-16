@@ -40,7 +40,7 @@ def main(run_function=run):
     home = Path().resolve()
     executable_path = Path(executable)
     conda = env_path("CONDA")
-    engine_yaml = Path(__file__).parent.parent / "resources/engine.yaml"
+    engine_yaml = Path(__file__).parent.parent / "resources/defs/special/engine.yaml"
     info(f"{engine_yaml=}")
     assert engine_yaml.is_file()
     engine_path = rotate_engine_directories(home, executable_path, conda)

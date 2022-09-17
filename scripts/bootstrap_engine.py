@@ -40,6 +40,9 @@ def main(run_function=run):
     home = Path().resolve()
     executable_path = Path(executable)
     conda = env_path("CONDA")
+    mamba = conda.with_name("mamba")
+    if mamba.is_file():
+        conda = mamba
     engine_yaml = Path(__file__).parent.parent / "resources/defs/special/engine.yaml"
     info(f"{engine_yaml=}")
     assert engine_yaml.is_file()

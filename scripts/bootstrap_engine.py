@@ -55,6 +55,8 @@ def main(run_function=run):
         CONDARC=env_path("CONDARC"),
     )
     info(f"{env=}")
+    if environ["VERBOSE"]:
+        run_function([conda, "info"], check=True, env=env)
     run_function(conda_command, check=True, env=env)
     if symlink.is_symlink():
         symlink.unlink()

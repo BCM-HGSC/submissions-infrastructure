@@ -63,7 +63,7 @@ main() {
     export CONDA_ENVS_DIRS="$RESOLVED_TARGET/infrastructure/production/conda/envs"
     export CONDA_PKGS_DIRS="$RESOLVED_TARGET"/conda_package_cache
     export HOME="$RESOLVED_TARGET"/engine_home
-    export CONDARC="$RESOLVED_TARGET"/condarc
+    export CONDARC="$RESOLVED_TARGET"/infrastructure/staging/condarc
 
     use_miniconda3_in_temp_for_conda_if_necessary
 

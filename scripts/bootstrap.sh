@@ -41,7 +41,7 @@ main() {
 
     trap cleanup SIGINT SIGTERM ERR EXIT
 
-    if [[ $VERBOSE == 'yy' ]]; then
+    if [[ ${#VERBOSE} -gt 2 ]]; then
         set -x
     fi
 
@@ -77,7 +77,7 @@ main() {
     PYTHON="$HOME"/engine/bin/python3
     dump_vars CONDA PYTHON
 
-    if [[ $VERBOSE == 'y' && -x $CONDA ]]; then
+    if [[ ${#VERBOSE} -gt 1 && -x $CONDA ]]; then
         ls -ld "$CONDA"
         "$CONDA" info
     fi

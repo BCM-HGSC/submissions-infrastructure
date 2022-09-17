@@ -60,10 +60,10 @@ main() {
     get_conda
 
     # Environment variables used by conda when creating the engine.
-    export CONDA_ENVS_DIRS="$RESOLVED_TARGET/infrastructure/current/conda/envs"
+    export CONDA_ENVS_DIRS="$RESOLVED_TARGET/infrastructure/production/conda/envs"
     export CONDA_PKGS_DIRS="$RESOLVED_TARGET"/conda_package_cache
     export HOME="$RESOLVED_TARGET"/engine_home
-    export CONDARC="$RESOLVED_TARGET"/condarc
+    export CONDARC="$RESOLVED_TARGET"/infrastructure/staging/condarc
 
     use_miniconda3_in_temp_for_conda_if_necessary
 
@@ -134,18 +134,19 @@ setup_target() {
     mkdir -p conda_package_cache engine_home infrastructure user_envs
     if ! ls $RESOLVED_TARGET/condarc &> /dev/null; then
         info 'Creating condarc symlink'
-        ln -s infrastructure/current/condarc
+        ln -s infrastructure/production/condarc
     fi
     cd infrastructure
-    mkdir -p blue green staging testing blue/{bin,etc} blue/conda/{def,envs}
-    ln -s blue current
-    touch current/condarc
+    mkdir -p blue green testing blue/{bin,etc} blue/conda/{def,envs}
+    ln -s blue staging
+    touch staging/condarc
     write_condarc
 }
 
 write_condarc() {
     local condarc_template=$RESOURCES_DIR/condarc.m4
-    m4 -D RESOLVED_TARGET=$RESOLVED_TARGET $condarc_template > current/condarc
+    m4 -D RESOLVED_TARGET=$RESOLVED_TARGET \
+       -D ENVIRONMENT_NAME=blue $condarc_template > staging/condarc
 }
 
 get_conda() {

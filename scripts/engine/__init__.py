@@ -29,8 +29,8 @@ def exec() -> NoReturn:
     engine_home_path = target_path / "engine_home"
     engine_python = engine_home_path / "engine/bin/python3"
     env = dict(
-        CONDARC=target_path / "infrastructure/staging/condarc",
-        HOME=engine_home_path,
+        # CONDARC=target_path / "infrastructure/staging/condarc",
+        # HOME=engine_home_path,
         PYTHONPATH=script_dir,
         VERBOSE=environ.get("VERBOSE", ""),
     )

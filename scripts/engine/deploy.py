@@ -9,7 +9,7 @@ from subprocess import run
 from sys import executable
 
 
-def deploy(target: Path, tier: str) -> None:
+def deploy_tier(target: Path, tier: str, offline: bool, run_function=run) -> None:
     info(f"{target=}")
     info(f"{tier=}")
     if not target.is_dir():
@@ -21,7 +21,6 @@ def deploy(target: Path, tier: str) -> None:
         exit(2)
     engine_home_path = target / "engine_home"
     tier_path = target / "infrastructure" / tier
-    defs_dir = Path(__file__).parent.parent.parent / "resources/defs"
     env = dict(
         HOME=engine_home_path,
         # CONDARC=tier_path / "condarc",
@@ -29,7 +28,20 @@ def deploy(target: Path, tier: str) -> None:
         CONDA_PKGS_DIRS=target / "conda_package_cache",
         CONDA_CHANNELS="conda-forge",
     )
-    run("/usr/bin/env", env=env)
+    info(f"{env=}")
     run([mamba, "info"], env=env)
+    env_path = Path("universal/conda.yaml")
+    deploy_env(run_function, env, mamba, offline, env_path)
+    env_path = Path("universal/unix.yaml")
+    deploy_env(run_function, env, mamba, offline, env_path)
+
+
+def deploy_env(run_function, env, mamba, offline, env_path: Path):
+    defs_dir = Path(__file__).parent.parent.parent / "resources/defs"
     run(["/Users/hale/conda/unix/bin/tree", defs_dir])
-    exit("TODO")
+    env_name = env_path.stem
+    offline_opt = ["--offline"] if offline else []
+    mamba_command = [mamba, "env", "create", "--force"] + offline_opt
+    mamba_command += ["-n", env_name, "-f", defs_dir / env_path]
+    info(f"{mamba_command=}")
+    run_function(mamba_command, check=True, env=env)

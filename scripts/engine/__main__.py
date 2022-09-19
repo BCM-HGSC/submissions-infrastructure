@@ -9,7 +9,7 @@ from os.path import isdir
 from pathlib import Path
 from sys import argv, executable
 
-from .deploy import deploy
+from .deploy import deploy_tier
 from .logging import config_logging
 
 
@@ -21,7 +21,7 @@ def main(cli_args: list[str]):
     debug(f"{cli_args=}")
     args = parse_command_line(cli_args)
     debug(f"{args=}")
-    deploy(args.target, args.tier)
+    deploy_tier(args.target, args.tier, args.offline)
 
 
 def parse_command_line(cli_args):
@@ -31,6 +31,7 @@ def parse_command_line(cli_args):
     parser = ArgumentParser(description="Deploy infrastructure")
     parser.add_argument("tier")
     parser.add_argument("target", type=dir_path)
+    parser.add_argument("--offline", action="store_true")
     args = parser.parse_args()
     return args
 

@@ -12,8 +12,6 @@ from typing import NoReturn
 from .logging import config_logging
 
 
-
-
 def exec() -> NoReturn:
     """
     Replace the current Python process with the python interpreter in the engine.
@@ -36,12 +34,12 @@ def exec() -> NoReturn:
         HOME=engine_home_path,
         PYTHONPATH=script_dir,
     )
-    args[:0] = [str(x) for x in (engine_python, "-m", "engine", command, target_path)]
+    args[:0] = [engine_python, "-m", "engine", command, target_path]
     info(f"{command=}")
     info(f"{script_dir=}")
     info(f"{target_path=}")
     info(f"{engine_python=}")
-    info(f"{args=}")
     info(f"{env=}")
-    # execve("/usr/bin/env", ["/usr/bin/env"], env)
+    info(f"{args=}")
+    info("execve")
     execve(engine_python, args, env)

@@ -6,7 +6,6 @@ primarily using conda.
 from logging import debug, info
 from os import environ, execve
 from pathlib import Path
-from re import VERBOSE
 from sys import argv, executable
 from typing import NoReturn
 
@@ -33,7 +32,7 @@ def exec() -> NoReturn:
         CONDARC=target_path / "infrastructure/staging/condarc",
         HOME=engine_home_path,
         PYTHONPATH=script_dir,
-        VERBOSE=environ.get("VERBOSE", "")
+        VERBOSE=environ.get("VERBOSE", ""),
     )
     args[:0] = [engine_python, "-m", "engine", tier, target_path]
     debug(f"{tier=}")

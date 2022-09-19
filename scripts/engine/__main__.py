@@ -12,7 +12,7 @@ from sys import argv, executable
 from .logging import config_logging
 
 
-def main(cli_args: list[str] ):
+def main(cli_args: list[str]):
     config_logging()
     info(f"running {__file__}:main")
     info(f"{environ=}")

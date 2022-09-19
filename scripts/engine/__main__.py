@@ -9,6 +9,7 @@ from os.path import isdir
 from pathlib import Path
 from sys import argv, executable
 
+from .deploy import deploy
 from .logging import config_logging
 
 
@@ -19,8 +20,8 @@ def main(cli_args: list[str]):
     info(f"{executable=}")
     debug(f"{cli_args=}")
     args = parse_command_line(cli_args)
-    info(f"{args=}")
-    return "TODO"
+    debug(f"{args=}")
+    deploy(args.target, args.tier)
 
 
 def parse_command_line(cli_args):

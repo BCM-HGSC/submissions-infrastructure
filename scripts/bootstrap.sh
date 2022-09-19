@@ -56,7 +56,6 @@ main() {
     dump_vars SCRIPT_DIR RESOURCES_DIR RESOLVED_TARGET
 
     setup_target
- 
     get_conda
 
     # Environment variables used by conda when creating the engine.
@@ -86,7 +85,7 @@ main() {
         exit
     fi
 
-    warning "TODO add team environments"
+    run_python stage.py $TARGET_DIR
 } >&2
 
 parse_params() {

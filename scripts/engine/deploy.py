@@ -20,7 +20,12 @@ DEFS_DIR = Path(__file__).parent.parent.parent / "resources/defs"
 
 
 def deploy_tier(
-    target: Path, tier: str, offline: bool, mode: Optional[str] = None, run_function=run
+    target: Path,
+    tier: str,
+    dry_run: bool,
+    offline: bool,
+    mode: Optional[str] = None,
+    run_function=run,
 ) -> None:
     info(f"{target=}")
     info(f"{tier=}")
@@ -28,7 +33,8 @@ def deploy_tier(
         critical("target is not a directory")
         exit(3)
     tier_path = target / "infrastructure" / tier
-    deployer = MambaDeployer(target, tier_path, offline, mode, run_function)
+    deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
+    debug(f"{vars(deployer)}")
     deployer.info()
     worklist = sorted(DEFS_DIR.glob("universal/*.yaml"))
     if platform == "darwin":
@@ -57,10 +63,12 @@ class MambaDeployer:
         self,
         target: Path,
         tier_path: Path,
+        dry_run: bool,
         offline: bool,
         mode: Optional[str],
         run_function=run,
     ):
+        self.dry_run = dry_run
         self.offline = offline
         self.mode = mode
         self.run_function = run_function
@@ -81,7 +89,7 @@ class MambaDeployer:
         self.run_function([MAMBA, "info"], env=self.env)
 
     def deploy_env(self, env_yaml: Path) -> int:
-        debug(f"{self.mode=} {env_yaml=}")
+        debug(f"{self.dry_run=} {self.mode=}")
         env_name = env_yaml.stem
         options = []
         if self.mode == "keep":
@@ -94,7 +102,8 @@ class MambaDeployer:
         options.append("--offline")
         mamba_command = [MAMBA, "env", "create"] + options
         mamba_command += ["-n", env_name, "-f", DEFS_DIR / env_yaml]
-        mamba_command[:0] = ["/usr/bin/env", "echo"]
+        if self.dry_run:
+            mamba_command[:0] = ["/usr/bin/env", "echo"]
         debug(f"{mamba_command=}")
         timestamp = dt.now().strftime("%Y%m%d-%H%M%S")
         log_path = self.log_dir / f"{timestamp}-{env_yaml.stem}.log"

@@ -20,9 +20,8 @@ def main(cli_args: list[str]):
     info(f"{executable=}")
     debug(f"{cli_args=}")
     args = parse_command_line(cli_args)
-    debug(f"{args=}")
-    # return
-    deploy_tier(args.target, args.tier, args.offline, args.mode)
+    info(f"{args=}")
+    deploy_tier(args.target, args.tier, args.dry_run, args.offline, args.mode)
 
 
 def parse_command_line(cli_args):
@@ -33,6 +32,7 @@ def parse_command_line(cli_args):
     parser.add_argument("tier")
     parser.add_argument("target", type=dir_path)
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument("-n", "--dry-run", action="store_true")
     parser.add_argument(
         "--keep",
         action="store_const",

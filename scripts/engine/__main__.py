@@ -21,7 +21,8 @@ def main(cli_args: list[str]):
     debug(f"{cli_args=}")
     args = parse_command_line(cli_args)
     debug(f"{args=}")
-    deploy_tier(args.target, args.tier, args.offline)
+    # return
+    deploy_tier(args.target, args.tier, args.offline, args.mode)
 
 
 def parse_command_line(cli_args):
@@ -32,6 +33,20 @@ def parse_command_line(cli_args):
     parser.add_argument("tier")
     parser.add_argument("target", type=dir_path)
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument(
+        "--keep",
+        action="store_const",
+        const="keep",
+        dest="mode",
+        help="keep existing conda environments",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_const",
+        const="force",
+        dest="mode",
+        help="overwrite existing conda environments",
+    )
     args = parser.parse_args()
     return args
 

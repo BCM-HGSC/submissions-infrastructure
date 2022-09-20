@@ -4,7 +4,7 @@ dependencies:
   - coreutils
   - diffutils
   - dos2unix
-  - emacs
+  - emacs > 26
   - findutils
   - gawk
   - htop

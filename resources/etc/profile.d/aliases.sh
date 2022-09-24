@@ -13,6 +13,7 @@ alias envs='env | sort'
 alias envsg='env | sort | grep'
 
 alias gd='git diff'
+alias git="XDG_CONFIG_HOME='$IAC_TIER_DIR/etc' git"
 # assumes lg is a git alias for something similar to:
 # log --graph --decorate --date=format:'%F %T' --pretty=tformat:'%C(auto)%cd %h %d %s'
 alias gl='git lg'

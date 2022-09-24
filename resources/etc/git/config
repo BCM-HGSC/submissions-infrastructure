@@ -1,0 +1,87 @@
+# Global team git config file.
+# This file is loaded because $XDG_CONFIG_HOME/git points here.
+# At the bottom we source ~/.gitconfig, to load the normal home directory items.
+
+# In order for all this to work, we must set XDG_CONFIG_HOME to the grandparent of
+# this file, typically with an alias:
+# alias git="XDG_CONFIG_HOME='$IAC_TIER_DIR/etc' git"
+# See profile.d/aliases.sh
+
+[alias]
+	al = config --get-regexp ^alias\\.
+	bc = bundle create
+	bl = bundle list-heads
+	br = branch
+	brav = "!git -P br -av"
+	ci = commit
+	co = checkout
+	cp = cherry-pick
+	df = diff
+	ff = merge --ff-only
+	fp = fetch -p
+	lg = log --graph --decorate --date=format:'%F %T' --pretty=tformat:'%C(auto)%cd %h %d %s'
+	lsr = ls-remote
+	rb = rebase
+	rp = rev-parse
+	rs = reset
+	st = status
+	wt = worktree
+[core]
+	excludesfile = ~/.gitignore_global
+	editor = emacs -nw
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[init]
+	defaultBranch = main
+[pull]
+	ff = only
+
+# Start UI things...
+[color]
+	diff = auto
+	status = auto
+	branch = auto
+	ui = true
+[color "diff"]
+	meta = 11
+	frag = magenta bold
+	commit = yellow bold
+	old = red bold
+	new = green bold
+	whitespace = red reverse
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22
+
+# For delta
+[pager]
+    diff = delta
+    log = delta
+    reflog = delta
+    show = delta
+[interactive]
+    diffFilter = delta --color-only --features=interactive
+[delta]
+    features = decorations interactive navigate
+    side-by-side = true
+[delta "interactive"]
+    keep-plus-minus-markers = false
+[delta "decorations"]
+    commit-decoration-style = blue ol
+    commit-style = raw
+    file-style = omit
+    hunk-header-decoration-style = blue box
+    hunk-header-file-style = red
+    hunk-header-line-number-style = "#067a00"
+    hunk-header-style = file line-number syntax
+[cola]
+	spellcheck = false
+
+# Load user config for things like name, email, and any personal overrides.
+[include]
+	path = ~/.gitconfig

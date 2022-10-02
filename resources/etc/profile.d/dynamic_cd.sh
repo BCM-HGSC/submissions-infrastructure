@@ -1,4 +1,11 @@
+# Functions for getting around quickly
+
 up() { cd $(python -c "print('../'*${1:-1})"); }
+
+function mgo() {
+    mkdir -p "$1"
+    cd "$1"
+}
 
 function dynamic_cd {
     name=$1
@@ -14,5 +21,7 @@ function dynamic_cd {
     fi
 }
 
+# TODO move out for macs
+# TODO linux version in some other file
 dynamic_cd cdr ~/Documents/HGSC/dev/repo
 dynamic_cd cdh ~

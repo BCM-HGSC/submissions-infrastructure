@@ -1,5 +1,19 @@
 # Local support for conda                                                                                                                                                                                  
 
+if [[ $BASH ]]; then
+    _local_conda_ca() { COMPREPLY=($(cenvs | egrep "^$2")); }
+    complete -o nospace -F _local_conda_ca -o plusdirs ca
+fi
+
+if [[ $ZSH_NAME ]]; then
+    function _local_conda_ca {
+        _values $(echo environments; cenvs)
+    }
+    compdef _local_conda_ca ca
+fi
+
+alias cda='conda deactivate'
+
 # alias ca='conda activate'
 ca() {
     if type conda | fgrep -q function; then
@@ -75,19 +89,3 @@ if [[ -x "$__CONDA_EXE" ]]; then
         env | fgrep __CONDA_ENVS
     fi
 fi
-
-if [[ $BASH ]]; then
-    _local_conda_ca() { COMPREPLY=($(cenvs | egrep "^$2")); }
-    complete -o nospace -F _local_conda_ca -o plusdirs ca
-fi
-
-if [[ $ZSH_NAME ]]; then
-    function _local_conda_ca {
-        _values $(echo environments; cenvs)
-    }
-    compdef _local_conda_ca ca
-fi
-
-alias reload-ca="source '$0'"
-
-alias cda='conda deactivate'

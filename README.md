@@ -39,7 +39,7 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
     - green
     - staging
     - testing
-    - current (symlink to blue or green)
+    - production (symlink to blue or green)
   - etc -> infrastructure/current/etc
 - some other team or application
 

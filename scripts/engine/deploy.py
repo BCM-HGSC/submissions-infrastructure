@@ -3,11 +3,10 @@ Module responsible for actually deploying sofwware to a tier.
 (A "tier" is a top-level directory or symlink such as "staging" or "production".)
 """
 
-from cmath import inf
-from curses.ascii import isdigit
 from datetime import datetime as dt
-from logging import critical, debug, error, info
+from logging import critical, debug, error, info, warning
 from pathlib import Path
+from shutil import copytree, rmtree
 from subprocess import STDOUT, run
 from sys import executable, platform
 from typing import Optional
@@ -15,8 +14,10 @@ from typing import Optional
 from rich.console import Console
 
 
-MAMBA = Path(executable).with_name("mamba")
-DEFS_DIR = Path(__file__).parent.parent.parent / "resources/defs"
+MAMBA = Path(executable).with_name("mamba")  # mamba in same bin/ as python3
+RESOURCES_DIR = Path(__file__).parent.parent.parent / "resources"
+DEFS_DIR = RESOURCES_DIR / "defs"
+ETC_SOURCE_DIR = RESOURCES_DIR / "etc"
 
 
 def deploy_tier(
@@ -27,15 +28,37 @@ def deploy_tier(
     mode: Optional[str] = None,
     run_function=run,
 ) -> None:
+    check_mamba()
+    tier_path = setup_tier_path(target, tier)
+    deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
+    if deployer.mode != "keep":
+        deployer.info()
+    worklist = list_conda_environment_defs()
+    deployer.deploy_conda_environments(worklist)
+    deployer.deploy_etc()
+
+
+def check_mamba():
+    info(f"{MAMBA=}")
+    if not MAMBA.is_file():
+        critical(f"mamba is missing")
+        exit(2)
+
+
+def setup_tier_path(target, tier):
     info(f"{target=}")
     info(f"{tier=}")
     if not target.is_dir():
         critical("target is not a directory")
         exit(3)
-    tier_path = target / "infrastructure" / tier
-    deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
-    debug(f"{vars(deployer)}")
-    deployer.info()
+    tier_path = (target / "infrastructure" / tier).resolve()
+    info(f"{tier_path=}")
+    if not tier_path.is_dir():
+        tier_path.mkdir(parents=True, exist_ok=True)
+    return tier_path
+
+
+def list_conda_environment_defs() -> list[Path]:
     worklist = sorted(DEFS_DIR.glob("universal/*.yaml"))
     if platform == "darwin":
         worklist.append(DEFS_DIR / "mac/mac.yaml")
@@ -44,18 +67,7 @@ def deploy_tier(
             error(f"not a file: {item}")
             worklist.remove(item)
     debug(f"{worklist=}")
-    for env_yaml in worklist:
-        info(f"{env_yaml=}")
-        returncode = deployer.deploy_env(env_yaml)
-        if returncode:
-            error(f"{returncode=} for {env_yaml.name}")
-
-
-def check_mamba():
-    info(f"{MAMBA=}")
-    if not MAMBA.is_file():
-        critical(f"mamba is missing")
-        exit(2)
+    return worklist
 
 
 class MambaDeployer:
@@ -73,6 +85,7 @@ class MambaDeployer:
         self.mode = mode
         self.run_function = run_function
         self.envs_dir = tier_path / "conda/envs"
+        self.etc_dir = tier_path / "etc"
         self.env = dict(
             HOME=target / "engine_home",
             # CONDARC=tier_path / "condarc",
@@ -84,12 +97,19 @@ class MambaDeployer:
         self.log_dir = tier_path / "logs"
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.console = Console()
+        debug(f"vars(deployer)={vars(self)}")
 
     def info(self):
         self.run_function([MAMBA, "info"], env=self.env)
 
+    def deploy_conda_environments(self, worklist):
+        for env_yaml in worklist:
+            info(f"{env_yaml=}")
+            returncode = self.deploy_env(env_yaml)
+            if returncode:
+                error(f"{returncode=} for {env_yaml.name}")
+
     def deploy_env(self, env_yaml: Path) -> int:
-        debug(f"{self.dry_run=} {self.mode=}")
         env_name = env_yaml.stem
         options = []
         if self.mode == "keep":
@@ -114,3 +134,17 @@ class MambaDeployer:
                     mamba_command, env=self.env, stderr=STDOUT, stdout=fout
                 )
         return result.returncode
+
+    def deploy_etc(self):
+        if self.etc_dir.exists():
+            if self.mode != "keep":
+                warning(f"etc dir already exists {self.etc_dir}")
+            info(f"clearing {self.etc_dir}")
+            rmtree(self.etc_dir)
+        info(f"copying {ETC_SOURCE_DIR} to {self.etc_dir}")
+        copytree(
+            src=ETC_SOURCE_DIR,
+            dst=self.etc_dir,
+            symlinks=True,
+            dirs_exist_ok=True,
+        )

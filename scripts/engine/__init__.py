@@ -39,7 +39,5 @@ def exec() -> NoReturn:
     debug(f"{script_dir=}")
     debug(f"{target_path=}")
     debug(f"{engine_python=}")
-    info(f"{env=}")
-    info(f"{args=}")
-    info("execve")
+    info(f"execve {args=} {env=}")
     execve(engine_python, args, env)

@@ -35,7 +35,8 @@ def deploy_tier(
     tier_path = target / "infrastructure" / tier
     deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
     debug(f"{vars(deployer)}")
-    deployer.info()
+    if deployer.mode != "keep":
+        deployer.info()
     worklist = sorted(DEFS_DIR.glob("universal/*.yaml"))
     if platform == "darwin":
         worklist.append(DEFS_DIR / "mac/mac.yaml")

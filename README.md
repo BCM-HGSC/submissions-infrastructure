@@ -27,15 +27,11 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
       - conda
         - defs (YAML definitions of the envs)
         - envs
-          - conda_a (our copy of the conda machinery)
+          - conda (our copy of the conda machinery)
             - condarc -> ../../condarc
-          - bio_a (any bioinformatics tools we pull from bioconda)
-          - main_a (all python stuff we pull from conda-forge)
-          - unix_a (any unix tools we pull from conda-forge)
-          - conda -> conda_a
-          - bio -> bio_a
-          - main -> main_a
-          - unix -> unix_a
+          - bio (any bioinformatics tools we pull from bioconda)
+          - main (all python stuff we pull from conda-forge)
+          - unix (any unix tools we pull from conda-forge)
     - green
     - staging
     - testing

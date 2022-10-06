@@ -6,7 +6,7 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 
 - some other team or application
 - submissions
-  - condarc -> infrastructure/current/condarc
+  - condarc -> infrastructure/production/condarc
   - conda_package_cache
   - config (any configuration for installing/updating infrastructure)
   - engine_home (non-user HOME containing machinery)

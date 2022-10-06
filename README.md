@@ -32,10 +32,10 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
           - bio (any bioinformatics tools we pull from bioconda)
           - main (all python stuff we pull from conda-forge)
           - unix (any unix tools we pull from conda-forge)
-    - green
-    - staging
-    - testing
+    - green (duplicate of blue)
     - production (symlink to blue or green)
+    - staging (symlink to blue or green)
+    - testing
   - etc -> infrastructure/current/etc
 - some other team or application
 

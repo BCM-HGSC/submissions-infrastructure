@@ -6,7 +6,7 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 
 - some other team or application
 - submissions
-  - condarc -> infrastructure/current/condarc
+  - condarc -> infrastructure/production/condarc
   - conda_package_cache
   - config (any configuration for installing/updating infrastructure)
   - engine_home (non-user HOME containing machinery)
@@ -22,24 +22,20 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
   - infrastructure
     - blue
       - bin
-      - etc (all automatically generated or installed "config" items)
+      - etc (all automatically generated or installed "config" or "profile" items)
       - condarc (master file)
       - conda
         - defs (YAML definitions of the envs)
         - envs
-          - conda_a (our copy of the conda machinery)
+          - conda (our copy of the conda machinery)
             - condarc -> ../../condarc
-          - bio_a (any bioinformatics tools we pull from bioconda)
-          - main_a (all python stuff we pull from conda-forge)
-          - unix_a (any unix tools we pull from conda-forge)
-          - conda -> conda_a
-          - bio -> bio_a
-          - main -> main_a
-          - unix -> unix_a
-    - green
-    - staging
+          - bio (any bioinformatics tools we pull from bioconda)
+          - main (all python stuff we pull from conda-forge)
+          - unix (any unix tools we pull from conda-forge)
+    - green (duplicate of blue)
+    - production (symlink to blue or green)
+    - staging (symlink to blue or green)
     - testing
-    - current (symlink to blue or green)
   - etc -> infrastructure/current/etc
 - some other team or application
 

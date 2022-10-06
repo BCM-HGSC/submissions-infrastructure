@@ -22,7 +22,7 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
   - infrastructure
     - blue
       - bin
-      - etc (all automatically generated or installed "config" items)
+      - etc (all automatically generated or installed "config" or "profile" items)
       - condarc (master file)
       - conda
         - defs (YAML definitions of the envs)

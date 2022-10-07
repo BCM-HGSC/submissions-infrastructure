@@ -35,6 +35,7 @@ def deploy_tier(
         deployer.info()
     worklist = list_conda_environment_defs()
     deployer.deploy_conda_environments(worklist)
+    deployer.deploy_etc()
 
 
 def check_mamba():
@@ -133,3 +134,17 @@ class MambaDeployer:
                     mamba_command, env=self.env, stderr=STDOUT, stdout=fout
                 )
         return result.returncode
+
+    def deploy_etc(self):
+        if self.etc_dir.exists():
+            if self.mode != "keep":
+                warning(f"etc dir already exists {self.etc_dir}")
+            info(f"clearing {self.etc_dir}")
+            rmtree(self.etc_dir)
+        info(f"copying {ETC_SOURCE_DIR} to {self.etc_dir}")
+        copytree(
+            src=ETC_SOURCE_DIR,
+            dst=self.etc_dir,
+            symlinks=True,
+            dirs_exist_ok=True,
+        )

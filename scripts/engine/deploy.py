@@ -105,7 +105,6 @@ class MambaDeployer:
         self.run_function([MAMBA, "info"], env=self.env)
 
     def deploy_env(self, env_yaml: Path) -> int:
-        debug(f"{self.dry_run=} {self.mode=}")
         env_name = env_yaml.stem
         options = []
         if self.mode == "keep":

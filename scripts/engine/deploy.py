@@ -25,6 +25,15 @@ def deploy_tier(
     mode: Optional[str] = None,
     run_function=run,
 ) -> None:
+    tier_path = setup_tier_path(target, tier)
+    deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
+    if deployer.mode != "keep":
+        deployer.info()
+    worklist = list_conda_environment_defs()
+    deploy_conda_environments(deployer, worklist)
+
+
+def setup_tier_path(target, tier):
     info(f"{target=}")
     info(f"{tier=}")
     if not target.is_dir():
@@ -34,12 +43,7 @@ def deploy_tier(
     info(f"{tier_path=}")
     if not tier_path.is_dir():
         tier_path.mkdir(parents=True, exist_ok=True)
-    deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
-    debug(f"{vars(deployer)}")
-    if deployer.mode != "keep":
-        deployer.info()
-    worklist = list_conda_environment_defs()
-    deploy_conda_environments(deployer, worklist)
+    return tier_path
 
 
 def list_conda_environment_defs() -> list[Path]:
@@ -95,6 +99,7 @@ class MambaDeployer:
         self.log_dir = tier_path / "logs"
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.console = Console()
+        debug(f"vars(deployer)={vars(self)}")
 
     def info(self):
         self.run_function([MAMBA, "info"], env=self.env)

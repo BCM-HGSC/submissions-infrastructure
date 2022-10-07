@@ -3,8 +3,6 @@ Module responsible for actually deploying sofwware to a tier.
 (A "tier" is a top-level directory or symlink such as "staging" or "production".)
 """
 
-from cmath import inf
-from curses.ascii import isdigit
 from datetime import datetime as dt
 from logging import critical, debug, error, info
 from pathlib import Path

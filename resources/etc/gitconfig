@@ -1,7 +1,3 @@
-[user]
-	name = Walker Hale IV
-	email = walker.hale.iv@gmail.com
-
 [alias]
 	al = config --get-regexp ^alias\\.
 	bc = bundle create
@@ -40,10 +36,8 @@
 	newNormal = green bold
 	newHighlight = green bold 22
 [core]
-	excludesfile = /Users/hale/.gitignore_global
-	editor = /usr/local/bin/code -w
-[credential]
-	helper = cache
+	excludesfile = ~/.gitignore_global
+	editor = emacs -nw
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
@@ -53,10 +47,6 @@
 	defaultBranch = main
 [pull]
 	ff = only
-
-[github]
-	user = walkerh
-	token = 5fe11ef2e3bd6eceeddafb6e43cfa203
 
 # Start UI things...
 

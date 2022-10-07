@@ -32,7 +32,9 @@ def deploy_tier(
     if not target.is_dir():
         critical("target is not a directory")
         exit(3)
-    tier_path = target / "infrastructure" / tier
+    tier_path = (target / "infrastructure" / tier).resolve()
+    if not tier_path.is_dir():
+        tier_path.mkdir(parents=True, exist_ok=True)
     deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
     debug(f"{vars(deployer)}")
     if deployer.mode != "keep":

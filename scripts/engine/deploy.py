@@ -40,6 +40,11 @@ def deploy_tier(
     debug(f"{vars(deployer)}")
     if deployer.mode != "keep":
         deployer.info()
+    worklist = list_conda_environment_defs()
+    deploy_conda_environments(deployer, worklist)
+
+
+def list_conda_environment_defs() -> list[Path]:
     worklist = sorted(DEFS_DIR.glob("universal/*.yaml"))
     if platform == "darwin":
         worklist.append(DEFS_DIR / "mac/mac.yaml")
@@ -48,6 +53,10 @@ def deploy_tier(
             error(f"not a file: {item}")
             worklist.remove(item)
     debug(f"{worklist=}")
+    return worklist
+
+
+def deploy_conda_environments(deployer, worklist):
     for env_yaml in worklist:
         info(f"{env_yaml=}")
         returncode = deployer.deploy_env(env_yaml)

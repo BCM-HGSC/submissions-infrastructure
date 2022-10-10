@@ -1,3 +1,12 @@
+# Global team git config file.
+# This file is loaded because $XDG_CONFIG_HOME/git points here.
+# At the bottom we source ~/.gitconfig, to load the normal home directory items.
+
+# In order for all this to work, we must set XDG_CONFIG_HOME to the grandparent of
+# this file, typically with an alias:
+# alias git="XDG_CONFIG_HOME='$IAC_TIER_DIR/etc' git"
+# See profile.d/aliases.sh
+
 [alias]
 	al = config --get-regexp ^alias\\.
 	bc = bundle create
@@ -9,7 +18,6 @@
 	cp = cherry-pick
 	df = diff
 	ff = merge --ff-only
-	ft = fetch
 	fp = fetch -p
 	lg = log --graph --decorate --date=format:'%F %T' --pretty=tformat:'%C(auto)%cd %h %d %s'
 	lsr = ls-remote
@@ -73,3 +81,7 @@
     hunk-header-style = file line-number syntax
 [cola]
 	spellcheck = false
+
+# Load user config for things like name, email, and any personal overrides.
+[include]
+	path = ~/.gitconfig

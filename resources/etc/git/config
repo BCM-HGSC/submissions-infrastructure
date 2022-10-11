@@ -26,6 +26,20 @@
 	rs = reset
 	st = status
 	wt = worktree
+[core]
+	excludesfile = ~/.gitignore_global
+	editor = emacs -nw
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[init]
+	defaultBranch = main
+[pull]
+	ff = only
+
+# Start UI things...
 [color]
 	diff = auto
 	status = auto
@@ -43,20 +57,6 @@
 	oldHighlight = red bold 52
 	newNormal = green bold
 	newHighlight = green bold 22
-[core]
-	excludesfile = ~/.gitignore_global
-	editor = emacs -nw
-[filter "lfs"]
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
-	process = git-lfs filter-process
-	required = true
-[init]
-	defaultBranch = main
-[pull]
-	ff = only
-
-# Start UI things...
 
 # For delta
 [pager]

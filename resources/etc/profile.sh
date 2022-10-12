@@ -58,3 +58,11 @@ for i in "$IAC_TIER_DIR"/etc/profile.d/*.sh ; do
         . "$i"
     fi
 done
+
+# Create dedicated "cd" functions for popular directories.
+dynamic_cd cdh ~
+if [[ $(uname -s) == "Linux" ]]; then
+    dynamic_cd cd1 /stornext/snfs130/submissions
+    dynamic_cd cdg /groups/submissions
+    dynamic_cd cds /hgsc_software/submissions
+fi

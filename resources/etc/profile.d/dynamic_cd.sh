@@ -20,8 +20,3 @@ function dynamic_cd {
         compdef _${name} ${name}
     fi
 }
-
-# TODO move out for macs
-# TODO linux version in some other file
-dynamic_cd cdr ~/Documents/HGSC/dev/repo
-dynamic_cd cdh ~

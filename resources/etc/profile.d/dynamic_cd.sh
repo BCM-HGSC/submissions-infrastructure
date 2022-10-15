@@ -10,6 +10,7 @@ function mgo() {
 function dynamic_cd {
     name=$1
     dest=$2
+    [[ -d $dest ]] || return
     eval "function $name { cd '$dest'/\$1; }"
     if [[ $BASH ]]; then
         eval "function _${name} { COMPREPLY=(\$(cd '$dest'; ls -d \"\$2\"*/)); }"

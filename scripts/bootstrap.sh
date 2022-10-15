@@ -84,8 +84,6 @@ main() {
     if [[ -n $NO_INSTALLS ]]; then
         exit
     fi
-
-    run_python stage.py $TARGET_DIR
 } >&2
 
 parse_params() {

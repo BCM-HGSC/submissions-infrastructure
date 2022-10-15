@@ -17,6 +17,7 @@ from rich.console import Console
 MAMBA = Path(executable).with_name("mamba")  # mamba in same bin/ as python3
 RESOURCES_DIR = Path(__file__).parent.parent.parent / "resources"
 DEFS_DIR = RESOURCES_DIR / "defs"
+BIN_SOURCE_DIR = RESOURCES_DIR / "bin"
 ETC_SOURCE_DIR = RESOURCES_DIR / "etc"
 
 
@@ -35,6 +36,7 @@ def deploy_tier(
         deployer.info()
     worklist = list_conda_environment_defs()
     deployer.deploy_conda_environments(worklist)
+    deployer.deploy_bin()
     deployer.deploy_etc()
 
 
@@ -85,6 +87,7 @@ class MambaDeployer:
         self.mode = mode
         self.run_function = run_function
         self.envs_dir = tier_path / "conda/envs"
+        self.bin_dir = tier_path / "bin"
         self.etc_dir = tier_path / "etc"
         self.env = dict(
             HOME=target / "engine_home",
@@ -135,16 +138,22 @@ class MambaDeployer:
                 )
         return result.returncode
 
+    def deploy_bin(self):
+        self.copy_resource_dir(BIN_SOURCE_DIR, self.bin_dir)
+
     def deploy_etc(self):
-        if self.etc_dir.exists():
+        self.copy_resource_dir(ETC_SOURCE_DIR, self.etc_dir)
+
+    def copy_resource_dir(self, src_dir, dst_dir):
+        if dst_dir.exists():
             if self.mode != "keep":
-                warning(f"etc dir already exists {self.etc_dir}")
-            info(f"clearing {self.etc_dir}")
-            rmtree(self.etc_dir)
-        info(f"copying {ETC_SOURCE_DIR} to {self.etc_dir}")
+                warning(f"destination dir already exists: {dst_dir}")
+            info(f"clearing {dst_dir}")
+            rmtree(dst_dir)
+        info(f"copying {src_dir} to {dst_dir}")
         copytree(
-            src=ETC_SOURCE_DIR,
-            dst=self.etc_dir,
+            src=src_dir,
+            dst=dst_dir,
             symlinks=True,
             dirs_exist_ok=True,
         )

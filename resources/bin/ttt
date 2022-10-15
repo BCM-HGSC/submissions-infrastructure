@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+
+"""Display TSV data formatted in less."""
+
+import argparse
+import subprocess
+import os
+import sys
+
+
+__version__ = '1.0.0-unstable'
+
+
+def main():
+    try:
+        args = parse_args()
+        run(args)
+    except BrokenPipeError:
+        pass  # normal; for example, piped to "head" command
+    sys.stderr.close()
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('input', type=argparse.FileType(),
+                        nargs='?', default=sys.stdin)
+    parser.add_argument('output', type=argparse.FileType('w'),
+                        nargs='?', default=sys.stdout)
+    parser.add_argument('-w', '--max-width', type=int,
+                        help='per column')
+    parser.add_argument('-l', '--less', action='store_true',
+                        help='pipe output to "less -SM"')
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s {}'.format(__version__))
+    args = parser.parse_args()
+    if os.path.basename(sys.argv[0]) == 'tttl':
+        args.less = True
+    return args
+
+
+def run(args):
+    max_width = args.max_width
+    # Slurp the entire file.
+    lines = [raw_line.rstrip(' \r\n') for raw_line in args.input]
+    # Compute column widths.
+    col_widths = []
+    for line in lines:
+        for col_num, col_str in enumerate(line.split('\t')):
+            l = len(col_str)
+            if max_width:
+                l = min(max_width, l)
+            if col_num < len(col_widths):
+                if col_widths[col_num] < l:
+                    col_widths[col_num] = l
+            else:
+                col_widths.append(l)
+    if args.less:
+        p = subprocess.Popen(['less', '-SMd'],
+                             stdin=subprocess.PIPE,
+                             universal_newlines=True)
+        send_output(lines, col_widths, p.stdin)
+        p.stdin.close()
+        p.wait()
+    else:
+        send_output(lines, col_widths, args.output)
+
+
+def send_output(lines, col_widths, output):
+    # Format output
+    for line in lines:
+        cols = line.split('\t')
+        output.write('[ ')
+        output.write(
+            ' | '.join(
+                col_str[:col_width].ljust(col_width)
+                for col_str, col_width in zip(cols, col_widths)
+            )
+        )
+        output.write(' ]\n')
+
+
+if __name__ == '__main__':
+    main()

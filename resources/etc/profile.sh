@@ -47,7 +47,7 @@ source "$__CONDA_ENVS_DIR/conda/etc/profile.d/mamba.sh"
 unset __add_env_if_exists
 unset __CONDA_ENVS_DIR
 
-PATH=~/bin:"$PATH"
+PATH=~/bin:"$IAC_TIER_DIR/bin":"$PATH"
 
 export PATH
 

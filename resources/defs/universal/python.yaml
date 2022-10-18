@@ -4,7 +4,6 @@ dependencies:
   - addict
   - attrs
   - bandit
-  - bash_kernel
   - beautifulsoup4
   - black
   - boto3

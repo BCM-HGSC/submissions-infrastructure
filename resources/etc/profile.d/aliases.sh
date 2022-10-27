@@ -18,6 +18,8 @@ alias git="XDG_CONFIG_HOME='$IAC_TIER_DIR/etc' git"
 # log --graph --decorate --date=format:'%F %T' --pretty=tformat:'%C(auto)%cd %h %d %s'
 alias gl='git lg'
 
+alias h=hostname
+
 alias ls='ls --color=auto'
 alias ll='ls -l'
 alias lld='ls -ld'

@@ -3,20 +3,22 @@
 
 # IAC_* is an abbreviation for infrastructure-as-code.
 
-if [[ -z $IAC_TIER_DIR ]]; then
-    if [[ $ZSH_NAME ]]; then
-        __temp_arg0="$0"
-    fi
-    if [[ $BASH ]]; then
-        __temp_arg0="${BASH_SOURCE[0]}"
-    fi
-    # echo __temp_arg0=$__temp_arg0
-    __temp_this_script=$(/usr/bin/readlink -f "$__temp_arg0")
-    # echo __temp_this_script=$__temp_this_script
-    IAC_TIER_DIR=$(/usr/bin/dirname $(/usr/bin/dirname "$__temp_this_script"))
-    unset __temp_arg0 __temp_this_script
+if [[ $ZSH_NAME ]]; then
+    __temp_arg0="$0"
 fi
-export IAC_TIER_DIR
+if [[ $BASH ]]; then
+    __temp_arg0="${BASH_SOURCE[0]}"
+fi
+echo __temp_arg0=$__temp_arg0
+
+__temp_this_script=$(/usr/bin/readlink -f "$__temp_arg0")
+echo __temp_this_script=$__temp_this_script
+
+export IAC_TIER_DIR=$(/usr/bin/dirname $(/usr/bin/dirname "$__temp_this_script"))
+export IAC_DIR=$(/usr/bin/dirname "$IAC_TIER_DIR")
+export IAC_TIER_NAME=$(/usr/bin/basename $(/usr/bin/dirname $(/usr/bin/dirname "$__temp_arg0")))
+
+unset __temp_arg0 __temp_this_script
 
 if [[ -z ${IAC_ORIGINAL_PATH:=$PATH} ]]; then
     echo "WARNING: original PATH is empty!"
@@ -46,9 +48,6 @@ source "$__CONDA_ENVS_DIR/conda/etc/profile.d/mamba.sh"
 
 unset __add_env_if_exists
 unset __CONDA_ENVS_DIR
-
-export IAC_DIR=$(/usr/bin/dirname "$IAC_TIER_DIR")
-export IAC_TIER_NAME=$(/usr/bin/basename "$IAC_TIER_DIR")
 
 iac_dump_vars() {
     echo "IAC_TIER_DIR=$IAC_TIER_DIR"
@@ -82,6 +81,8 @@ fi
 iac_load() {
     local tier="$1"
     shift
+    IAC_TIER_DIR=
+    IAC_TIER_NAME=
     source "$IAC_DIR/$tier/etc/profile.sh"
 }
 

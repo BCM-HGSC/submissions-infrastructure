@@ -47,11 +47,16 @@ source "$__CONDA_ENVS_DIR/conda/etc/profile.d/mamba.sh"
 unset __add_env_if_exists
 unset __CONDA_ENVS_DIR
 
-PATH=~/bin:"$IAC_TIER_DIR/bin":"$PATH"
+export IAC_DIR=$(/usr/bin/dirname "$IAC_TIER_DIR")
+
+if [[ -n $VERBOSE ]]; then
+    echo "IAC_TIER_DIR=$IAC_TIER_DIR"
+    echo "IAC_DIR=$IAC_DIR"
+fi
+
+PATH=~/bin:"$IAC_DIR/bin":"$IAC_TIER_DIR/bin":"$PATH"
 
 export PATH
-
-echo "IAC_TIER_DIR=$IAC_TIER_DIR"
 
 for i in "$IAC_TIER_DIR"/etc/profile.d/*.sh ; do
     if [ -r "$i" ]; then

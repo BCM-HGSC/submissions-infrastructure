@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+
+"""
+Promote the staging tier to production.
+
+This script will:
+
+- Read the current tier path from the command line.
+- Take the parent of the tier path as the target path.
+- Find the target of "staging" symlink.
+- Require that the target be blue or green.
+- Validate and then remove any existing "production" symlink.
+- Create a new "production" symlink that points to the target of "staging".
+- Move the "staging" symlink to the opposite tier (blue vs green) from "production"
+"""
+
+from os import environ
+from pathlib import Path
+from sys import exit
+from typing import NoReturn
+
+
+BLUE_GREEN_TRANSITIONS = {
+    "blue": "green",
+    "green": "blue",
+}
+
+
+def main():
+    if "IAC_TIER_DIR" not in environ:
+        die("environment is missing IAC_TIER_DIR")
+    tier_path = Path(environ["IAC_TIER_DIR"]).resolve()
+    infrastructure_path = tier_path.parent
+    print(f"{infrastructure_path=}")
+    staging_path = infrastructure_path / "staging"
+    staging_color = validate_and_get_color(staging_path)
+    production_path = infrastructure_path / "production"
+    if production_path.exists():
+        production_color = validate_and_get_color(production_path)
+        if production_color == staging_color:
+            die(f"staging and production symlinks have the same color: {staging_color}")
+        production_path.unlink()
+    new_staging_color = BLUE_GREEN_TRANSITIONS[staging_color]
+    production_path.symlink_to(staging_color)
+    staging_path.unlink()
+    staging_path.symlink_to(new_staging_color)
+
+
+def validate_and_get_color(tier_path: Path) -> str:
+    """
+    Return the color (blue or green) of the input tier path symlink.
+    Die of the tier path is not a symlink or does not point to the blue or green
+    directories.
+    """
+    if not tier_path.is_symlink():
+        die(f"Not a symlink: {tier_path}")
+    if not tier_path.is_dir():
+        die(f"Symlink does not point to a directory: {tier_path}")
+    color = tier_path.readlink().name
+    if color not in BLUE_GREEN_TRANSITIONS:
+        die(f"Target of {tier_path} is niether 'blue' nor 'green': {color}")
+    return color
+
+
+def die(message) -> NoReturn:
+    print(message)
+    exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -71,3 +71,14 @@ if [[ $(uname -s) == "Linux" ]]; then
     dynamic_cd cdg /groups/submissions
     dynamic_cd cds /hgsc_software/submissions
 fi
+
+
+iac_load() {
+    local tier="$1"
+    shift
+    source "$IAC_DIR/$tier/etc/profile.sh"
+}
+
+iac_releoad() {
+    iac_load "$IAC_TIER_NAME"
+}

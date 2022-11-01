@@ -50,10 +50,14 @@ unset __CONDA_ENVS_DIR
 export IAC_DIR=$(/usr/bin/dirname "$IAC_TIER_DIR")
 export IAC_TIER_NAME=$(/usr/bin/basename "$IAC_TIER_DIR")
 
-if [[ -n $VERBOSE ]]; then
+iac_dump_vars() {
     echo "IAC_TIER_DIR=$IAC_TIER_DIR"
     echo "IAC_TIER_NAME=$IAC_TIER_NAME"
     echo "IAC_DIR=$IAC_DIR"
+}
+
+if [[ -n $VERBOSE ]]; then
+    iac_dump_vars
 fi
 
 PATH=~/bin:"$IAC_DIR/bin":"$IAC_TIER_DIR/bin":"$PATH"

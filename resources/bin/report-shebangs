@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+
+"""
+Scan specified directories for scripts and generate a TSV report of their shebang lines.
+"""
+
+import argparse
+from sys import exit, stderr, version_info
+from pathlib import Path
+from typing import Optional
+
+
+__version__ = '1.0.0-b1+dev'
+
+
+def main():
+    if version_info[:2] < (3, 4):
+        err("This script requires at least Python 3.4.")
+        exit(2)
+    try:
+        args = parse_args()
+        error = run(args.dirs)
+    except BrokenPipeError:
+        pass  # normal; for example, piped to "head" command
+    stderr.close()
+    exit(error)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('dirs', nargs='*', default=["."], help="defaults to '.'")
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s {}'.format(__version__))
+    args = parser.parse_args()
+    return args
+
+
+def run(dirs):
+    paths = [Path(d).resolve() for d in dirs]
+    bad_paths = [p for p in paths if not p.is_dir()]
+    if bad_paths:
+        err("Bad paths:")
+        for p in bad_paths:
+            err(p)
+        return 1
+    for p in paths:
+        for f in p.glob("**/*"):
+            if f.is_file():
+                shebang = get_shebang(f)
+                if shebang:
+                    print(shebang, f, sep="\t")
+
+
+def err(*args, **kwargs):
+    print(*args, **kwargs, file=stderr)
+
+
+def get_shebang(f: Path) -> Optional[str]:
+    with f.open("rb") as fin:
+        data = fin.read(2)
+        if data != b"#!":
+            return None
+    with f.open(encoding="ascii", errors="backslashreplace") as fin:
+        raw_line = fin.readline()
+    shebang = raw_line[2:].strip()
+    return shebang
+
+
+if __name__ == '__main__':
+    main()

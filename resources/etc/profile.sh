@@ -9,10 +9,8 @@ fi
 if [[ $BASH ]]; then
     __temp_arg0="${BASH_SOURCE[0]}"
 fi
-echo __temp_arg0=$__temp_arg0
 
 __temp_this_script=$(/usr/bin/readlink -f "$__temp_arg0")
-echo __temp_this_script=$__temp_this_script
 
 export IAC_TIER_DIR=$(/usr/bin/dirname $(/usr/bin/dirname "$__temp_this_script"))
 export IAC_DIR=$(/usr/bin/dirname "$IAC_TIER_DIR")
@@ -50,6 +48,8 @@ unset __add_env_if_exists
 unset __CONDA_ENVS_DIR
 
 iac_dump_vars() {
+    echo __temp_arg0=$__temp_arg0
+    echo __temp_this_script=$__temp_this_script
     echo "IAC_TIER_DIR=$IAC_TIER_DIR"
     echo "IAC_TIER_NAME=$IAC_TIER_NAME"
     echo "IAC_DIR=$IAC_DIR"

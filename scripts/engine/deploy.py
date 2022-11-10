@@ -7,7 +7,7 @@ from datetime import datetime as dt
 from logging import critical, debug, error, info, warning
 from pathlib import Path
 from shutil import copytree, rmtree
-from subprocess import STDOUT, run
+from subprocess import DEVNULL, PIPE, STDOUT, run
 from sys import executable, platform
 from typing import Optional
 
@@ -40,6 +40,7 @@ def deploy_tier(
         return
     deployer.deploy_bin()
     deployer.deploy_etc()
+    deployer.store_git_info()
 
 
 def check_mamba():
@@ -91,6 +92,7 @@ class MambaDeployer:
         self.envs_dir = tier_path / "conda/envs"
         self.bin_dir = tier_path / "bin"
         self.etc_dir = tier_path / "etc"
+        self.meta_dir = tier_path / "meta"
         self.env = dict(
             HOME=target / "engine_home",
             # CONDARC=tier_path / "condarc",
@@ -159,3 +161,21 @@ class MambaDeployer:
             symlinks=True,
             dirs_exist_ok=True,
         )
+
+    def store_git_info(self) -> None:
+        self.meta_dir.mkdir(exist_ok=True)
+        self.write_meta("commit", ["git", "rev-parse", "HEAD"], True)
+        self.write_meta("tree_hash", ["git", "rev-parse", "HEAD:"], True)
+        (
+            self.write_meta("description", ["git", "describe", "--dirty"])
+            or self.write_meta("description", ["git", "describe", "--dirty", "--tags"])
+            or self.write_meta("description", ["git", "describe", "--dirty", "--all"])
+        )
+        pass
+
+    def write_meta(self, dest_name, command, expect_fail=True) -> bool:
+        stderr = DEVNULL if expect_fail else None
+        result = self.run_function(command, stdout=PIPE, stderr=stderr)
+        dest_path = self.meta_dir / dest_name
+        dest_path.write_bytes(result.stdout or b"ERROR\n")
+        return result.returncode == 0

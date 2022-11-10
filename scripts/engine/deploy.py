@@ -7,7 +7,7 @@ from datetime import datetime as dt
 from logging import critical, debug, error, info, warning
 from pathlib import Path
 from shutil import copytree, rmtree
-from subprocess import STDOUT, run
+from subprocess import DEVNULL, PIPE, STDOUT, run
 from sys import executable, platform
 from typing import Optional
 
@@ -15,7 +15,8 @@ from rich.console import Console
 
 
 MAMBA = Path(executable).with_name("mamba")  # mamba in same bin/ as python3
-RESOURCES_DIR = Path(__file__).parent.parent.parent / "resources"
+CODE_ROOT_DIR = Path(__file__).parent.parent.parent
+RESOURCES_DIR = CODE_ROOT_DIR / "resources"
 DEFS_DIR = RESOURCES_DIR / "defs"
 BIN_SOURCE_DIR = RESOURCES_DIR / "bin"
 ETC_SOURCE_DIR = RESOURCES_DIR / "etc"
@@ -40,6 +41,7 @@ def deploy_tier(
         return
     deployer.deploy_bin()
     deployer.deploy_etc()
+    deployer.store_git_info()
 
 
 def check_mamba():
@@ -91,6 +93,7 @@ class MambaDeployer:
         self.envs_dir = tier_path / "conda/envs"
         self.bin_dir = tier_path / "bin"
         self.etc_dir = tier_path / "etc"
+        self.meta_dir = tier_path / "meta"
         self.env = dict(
             HOME=target / "engine_home",
             # CONDARC=tier_path / "condarc",
@@ -159,3 +162,22 @@ class MambaDeployer:
             symlinks=True,
             dirs_exist_ok=True,
         )
+
+    def store_git_info(self) -> None:
+        self.meta_dir.mkdir(exist_ok=True)
+        self.write_meta("commit", ["rev-parse", "HEAD"], True)
+        self.write_meta("tree_hash", ["rev-parse", "HEAD:"], True)
+        (
+            self.write_meta("description", ["describe", "--dirty"])
+            or self.write_meta("description", ["describe", "--dirty", "--tags"])
+            or self.write_meta("description", ["describe", "--dirty", "--all"])
+        )
+
+    def write_meta(self, dest_name, subcommand, expect_fail=True) -> bool:
+        command_prefix = ["git", "-C", CODE_ROOT_DIR]
+        command = command_prefix + subcommand
+        stderr = DEVNULL if expect_fail else None
+        result = self.run_function(command, stdout=PIPE, stderr=stderr)
+        dest_path = self.meta_dir / dest_name
+        dest_path.write_bytes(result.stdout or b"ERROR\n")
+        return result.returncode == 0

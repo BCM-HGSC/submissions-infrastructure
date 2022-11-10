@@ -36,6 +36,8 @@ def deploy_tier(
         deployer.info()
     worklist = list_conda_environment_defs()
     deployer.deploy_conda_environments(worklist)
+    if deployer.dry_run:
+        return
     deployer.deploy_bin()
     deployer.deploy_etc()
 

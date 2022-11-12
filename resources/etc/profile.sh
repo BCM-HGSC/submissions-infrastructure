@@ -16,8 +16,6 @@ export IAC_TIER_DIR=$(/usr/bin/dirname $(/usr/bin/dirname "$__temp_this_script")
 export IAC_DIR=$(/usr/bin/dirname "$IAC_TIER_DIR")
 export IAC_TIER_NAME=$(/usr/bin/basename $(/usr/bin/dirname $(/usr/bin/dirname "$__temp_arg0")))
 
-unset __temp_arg0 __temp_this_script
-
 if [[ -z ${IAC_ORIGINAL_PATH:=$PATH} ]]; then
     echo "WARNING: original PATH is empty!"
 fi
@@ -48,16 +46,19 @@ unset __add_env_if_exists
 unset __CONDA_ENVS_DIR
 
 iac_dump_vars() {
-    echo __temp_arg0=$__temp_arg0
-    echo __temp_this_script=$__temp_this_script
     echo "IAC_TIER_DIR=$IAC_TIER_DIR"
     echo "IAC_TIER_NAME=$IAC_TIER_NAME"
     echo "IAC_DIR=$IAC_DIR"
+    echo "IAC_ORIGINAL_PATH=$IAC_ORIGINAL_PATH"
 }
 
 if [[ -n $VERBOSE ]]; then
+    echo __temp_arg0=$__temp_arg0
+    echo __temp_this_script=$__temp_this_script
     iac_dump_vars
 fi
+
+unset __temp_arg0 __temp_this_script
 
 PATH=~/bin:"$IAC_DIR/bin":"$IAC_TIER_DIR/bin":"$PATH"
 

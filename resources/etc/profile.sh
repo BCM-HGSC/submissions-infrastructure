@@ -14,6 +14,7 @@ __temp_this_script=$(/usr/bin/readlink -f "$__temp_arg0")
 
 export IAC_TIER_DIR=$(/usr/bin/dirname $(/usr/bin/dirname "$__temp_this_script"))
 export IAC_DIR=$(/usr/bin/dirname "$IAC_TIER_DIR")
+export IAC_PARENT=$(/usr/bin/dirname "$IAC_DIR")
 export IAC_TIER_NAME=$(/usr/bin/basename $(/usr/bin/dirname $(/usr/bin/dirname "$__temp_arg0")))
 
 if [[ -z ${IAC_ORIGINAL_PATH:=$PATH} ]]; then
@@ -45,11 +46,15 @@ source "$__CONDA_ENVS_DIR/conda/etc/profile.d/mamba.sh"
 unset __add_env_if_exists
 unset __CONDA_ENVS_DIR
 
+export CONDARC="$IAC_TIER_DIR/etc/condarc"
+
 iac_dump_vars() {
     echo "IAC_TIER_DIR=$IAC_TIER_DIR"
     echo "IAC_TIER_NAME=$IAC_TIER_NAME"
     echo "IAC_DIR=$IAC_DIR"
+    echo "IAC_PARENT=$IAC_PARENT"
     echo "IAC_ORIGINAL_PATH=$IAC_ORIGINAL_PATH"
+    echo "CONDARC=$CONDARC"
 }
 
 if [[ -n $VERBOSE ]]; then

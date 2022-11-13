@@ -1,0 +1,8 @@
+channels:
+  - conda-forge
+envs_dirs:
+  - ${IAC_PARENT}/users/${USER}/conda/envs  # personal
+  - ${IAC_TIER_DIR}/conda/envs  # team
+pkgs_dirs:
+  - ${IAC_PARENT}/users/${USER}/conda/pkgs  # personal
+  - ${IAC_PARENT}/conda_package_cache  # team

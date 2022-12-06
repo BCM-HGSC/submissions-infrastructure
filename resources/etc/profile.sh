@@ -10,19 +10,20 @@ if [[ $BASH ]]; then
     __temp_arg0="${BASH_SOURCE[0]}"
 fi
 
-__temp_this_script=$(/usr/bin/readlink -f "$__temp_arg0")
-
-export IAC_TIER_DIR=$(/usr/bin/dirname $(/usr/bin/dirname "$__temp_this_script"))
-export IAC_DIR=$(/usr/bin/dirname "$IAC_TIER_DIR")
-export IAC_PARENT=$(/usr/bin/dirname "$IAC_DIR")
-export IAC_TIER_NAME=$(/usr/bin/basename $(/usr/bin/dirname $(/usr/bin/dirname "$__temp_arg0")))
-
 if [[ -z ${IAC_ORIGINAL_PATH:=$PATH} ]]; then
     echo "WARNING: original PATH is empty!"
 fi
 export IAC_ORIGINAL_PATH
 
 PATH=/usr/local/bin:/opt/local/bin:/usr/bin:/bin
+export PATH
+
+__temp_this_script=$(readlink -f "$__temp_arg0")
+
+export IAC_TIER_DIR=$(dirname $(dirname "$__temp_this_script"))
+export IAC_DIR=$(dirname "$IAC_TIER_DIR")
+export IAC_PARENT=$(dirname "$IAC_DIR")
+export IAC_TIER_NAME=$(basename $(dirname $(dirname "$__temp_arg0")))
 
 __CONDA_ENVS_DIR="$IAC_TIER_DIR/conda/envs"
 

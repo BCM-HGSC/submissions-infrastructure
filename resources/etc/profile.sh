@@ -96,3 +96,6 @@ iac_load() {
 iac_releoad() {
     iac_load "$IAC_TIER_NAME"
 }
+
+# All files and directories will be group-writeable by default:
+umask 0002

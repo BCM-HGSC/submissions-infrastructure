@@ -3,10 +3,10 @@
 
 # IAC_* is an abbreviation for infrastructure-as-code.
 
-if [[ $ZSH_NAME ]]; then
+if [[ -n $ZSH_NAME ]]; then
     __temp_arg0="$0"
 fi
-if [[ $BASH ]]; then
+if [[ -n $BASH ]]; then
     __temp_arg0="${BASH_SOURCE[0]}"
 fi
 

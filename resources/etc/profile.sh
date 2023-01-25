@@ -93,7 +93,7 @@ iac_load() {
     source "$IAC_DIR/$tier/etc/profile.sh"
 }
 
-iac_releoad() {
+iac_reload() {
     iac_load "$IAC_TIER_NAME"
 }
 

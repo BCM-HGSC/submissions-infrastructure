@@ -12,11 +12,11 @@ function dynamic_cd {
     dest=$2
     [[ -d $dest ]] || return
     eval "function $name { cd '$dest'/\$1; }"
-    if [[ $BASH ]]; then
+    if [[ -n $BASH ]]; then
         eval "function _${name} { COMPREPLY=(\$(cd '$dest'; ls -d \"\$2\"*/)); }"
         complete -o nospace -F _${name} ${name}
     fi
-    if [[ $ZSH_NAME ]]; then
+    if [[ -n $ZSH_NAME ]]; then
         eval "function _${name} { _path_files -/ -W '$dest'; }"
         compdef _${name} ${name}
     fi

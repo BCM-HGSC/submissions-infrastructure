@@ -31,7 +31,11 @@ def deploy_tier(
     run_function=run,
 ) -> None:
     check_mamba()
+    prod_path = setup_tier_path(target, "production")
     tier_path = setup_tier_path(target, tier)
+    if tier_path == prod_path:
+        critical(f"attempt to modify {prod_path=}")
+        exit(4)
     deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
     if deployer.mode != "keep":
         deployer.info()

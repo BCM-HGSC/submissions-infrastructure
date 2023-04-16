@@ -9,6 +9,5 @@ dependencies:
   - lftp
   - mc
   - ncdu
-  - pstree
   - pv
   - tree

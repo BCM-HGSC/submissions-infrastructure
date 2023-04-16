@@ -9,6 +9,7 @@ dependencies:
   - gawk
   - htop
   - jq
+  - pstree
   - sed
   - tmux
   - wget

@@ -127,7 +127,7 @@ setup_target() {
             rm -rf infrastructure
         fi
     fi
-    mkdir -p conda_package_cache engine_home infrastructure user_envs
+    mkdir -p conda_package_cache engine_home infrastructure
     cd infrastructure
     mkdir -p blue green testing blue/{bin,etc} blue/conda/{def,envs}
     ln -s blue staging

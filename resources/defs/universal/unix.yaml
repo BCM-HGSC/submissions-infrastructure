@@ -5,6 +5,7 @@ dependencies:
   - broot
   - exa
   - fzf
+  - git-delta
   - git-lfs
   - lftp
   - mc

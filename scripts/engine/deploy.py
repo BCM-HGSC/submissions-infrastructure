@@ -36,6 +36,9 @@ def deploy_tier(
     if tier_path == prod_path:
         critical(f"attempt to modify {prod_path=}")
         exit(4)
+    if tier_path.exists() and mode == "force":
+        rmtree(tier_path)
+        tier_path.mkdir()
     deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
     if deployer.mode != "keep":
         deployer.info()

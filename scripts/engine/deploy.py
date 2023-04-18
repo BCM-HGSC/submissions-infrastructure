@@ -100,7 +100,6 @@ class MambaDeployer:
         self.meta_dir = tier_path / "meta"
         self.env = dict(
             HOME=target / "engine_home",
-            # CONDARC=tier_path / "condarc",
             CONDA_ENVS_DIRS=self.envs_dir,
             CONDA_PKGS_DIRS=target / "conda_package_cache",
             CONDA_CHANNELS="conda-forge",

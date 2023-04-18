@@ -19,7 +19,7 @@ Available options:
 -h, --help          Print this help and exit.
 -v, --verbose       Print script debug info.
 --no-color          Turn off color output.
---force             Force overwriting existing infrastructure!
+--force             Erase existing tier in current infrastructure!
 --offline           No internet usage
 -k, --keep          Keep and use current deployment engine
 -n, --no-installs   No conda or pip installs, just skeleton
@@ -123,8 +123,7 @@ setup_target() {
         if [[ -z $FORCE ]]; then
             die "$TARGET_DIR/infrastructure already exists"
         else
-            warning "overwriting $RESOLVED_TARGET/infrastructure"
-            rm -rf infrastructure
+            warning "Overwriting $RESOLVED_TARGET/infrastructure"
         fi
     fi
     mkdir -p conda_package_cache engine_home infrastructure

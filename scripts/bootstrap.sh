@@ -129,7 +129,9 @@ setup_target() {
     mkdir -p conda_package_cache engine_home infrastructure
     cd infrastructure
     mkdir -p blue green testing blue/{bin,etc} blue/conda/{def,envs}
-    ln -s blue staging
+    if [[ ! -f staging ]]; then
+        ln -s blue staging
+    fi
 }
 
 get_conda() {

@@ -133,7 +133,8 @@ class MambaDeployer:
                 return 0
         elif self.mode == "force":
             options.append("--force")
-        options.append("--offline")
+        if self.offline:
+            options.append("--offline")
         mamba_command = [MAMBA, "env", "create"] + options
         mamba_command += ["-n", env_name, "-f", DEFS_DIR / env_yaml]
         if self.dry_run:

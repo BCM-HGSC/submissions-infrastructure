@@ -1,0 +1,9 @@
+#!/bin/zsh
+SHELL=/bin/zsh
+cd
+exec /usr/bin/env -i HOME="$HOME" LOGNAME=$LOGNAME USER=$USER \
+    PATH=/usr/bin:/bin \
+    SHELL="$SHELL" \
+    SHLVL=$(( $SHLVL-1 )) \
+    TERM="$TERM" \
+    "$SHELL" "$@"

@@ -1,27 +1,23 @@
-# Local support for conda                                                                                                                                                                                  
+# Local support for conda
+# Add two commands:
+#
+# cda: a wrapper for "conda deactivate"
+#
+# ca: a wrapper function for "conda activate" that simplifies the PS1 prompt
+# when the environment is specified by path, as indicated by a slash.
+#
+# The ca function supports tab-completion using the contents of the directory
+# "${IAC_PARENT}/users/${USER}/conda/envs"
+#
+# Additional the alias "reload-ca" will reload this file.
 
-# alias ca='conda activate'
+alias reload-ca="source '$0'"
+
+alias cda='conda deactivate'
+
 ca() {
-    if type conda | fgrep -q function; then
-        conda deactivate
-    fi
-    __SAVE_PS1="$PS1"
-    if type conda | fgrep -q function; then
-        conda activate "$@"
-    else
-        _insure_conda_root
-        # Tell conda activate to start fresh.
-        unset CONDA_SHLVL
-        # Trim extraneous bin or condabin directories.
-        if [[ $PATH == "$__CONDA_ROOT"/bin:* ]]; then
-            PATH=$(echo $PATH | cut -d: -f2-)
-        fi
-        if [[ $PATH == "$__CONDA_ROOT"/condabin:* ]]; then
-            PATH=$(echo $PATH | cut -d: -f2-)
-        fi
-        # Load conda, which will set and export PATH.
-        source "$__CONDA_ROOT"/bin/activate "$@"
-    fi
+    local __SAVE_PS1="$PS1"
+    conda activate "$@"
     if [[ $? == 0 ]]; then
         if [[ "$CONDA_DEFAULT_ENV" =~ .*/.* ]]; then
             local new_mod="(.../$(basename "$CONDA_DEFAULT_ENV")) "
@@ -33,61 +29,35 @@ ca() {
     fi
 }
 
-cenvs() {
-    _insure_conda_envs
-    if [[ "$__CONDA_ENVS" ]]; then
-        command ls "$__CONDA_ENVS"/
-    fi
-}
+if [[ $ZSH_NAME ]]; then
+    # Define the zsh completer function
+    _ca_complete() {
+        local envs
+        if [[ $words[2] == */* ]]; then
+            _files -W -g "$words[2]*(-/)" -/ -o nosort
+        else
+            envs=( $(ls "${IAC_PARENT}/users/${USER}/conda/envs") )
+            _arguments "1: :($(echo $envs))"
+            # _files -W -g "${IAC_PARENT}/users/${USER}/conda/envs/$words[2]*(-/)" -/ -o nosort
+        fi
+    }
 
-_insure_conda_envs() {
-    :
-}
-
-_insure_conda_root() {
-    if [[ "$__CONDA_ROOT" ]]; then
-        return
-    fi
-    _insure_conda_exe
-    if [[ -x "$__CONDA_EXE" ]]; then
-        __CONDA_ROOT=$("$__CONDA_EXE" info --base)
-    fi
-}
-
-_insure_conda_exe() {
-    if [[ "$__CONDA_EXE" ]]; then
-        return
-    fi
-    __CONDA_EXE="$CONDA_EXE"
-    if [[ -z "$__CONDA_EXE" ]]; then
-        __CONDA_EXE=$(/usr/bin/env which conda)
-    fi
-}
-
-if [[ "$__CONDA_ENVS" ]]; then
-    return
-fi
-_insure_conda_exe
-if [[ -x "$__CONDA_EXE" ]]; then
-    __CONDA_ENVS=$($__CONDA_EXE info | fgrep 'envs directories' | cut -d: -f2 | cut -d' ' -f2)
-    export __CONDA_ENVS
-    if [[ "$VERBOSE" ]]; then
-        env | fgrep __CONDA_ENVS
-    fi
+    # Register the completer function for the "ca" function
+    compdef _ca_complete ca
 fi
 
 if [[ $BASH ]]; then
-    _local_conda_ca() { COMPREPLY=($(cenvs | egrep "^$2")); }
-    complete -o nospace -F _local_conda_ca -o plusdirs ca
-fi
-
-if [[ $ZSH_NAME ]]; then
-    function _local_conda_ca {
-        _values $(echo environments; cenvs)
+    # Define the bash completer function
+    _ca_complete() {
+        local envs
+        if [[ $COMP_WORDS[COMP_CWORD] == */* ]]; then
+            COMPREPLY=( $(compgen -d "$COMP_WORDS[COMP_CWORD]" ) )
+        else
+            envs=( $(ls "${IAC_PARENT}/users/${USER}/conda/envs") )
+            COMPREPLY=( $(compgen -W "$(echo ${envs[*]})" -- "${COMP_WORDS[COMP_CWORD]}" ) )
+        fi
     }
-    compdef _local_conda_ca ca
+
+    # Register the completer function for the "ca" function
+    complete -F _ca_complete ca
 fi
-
-alias reload-ca="source '$0'"
-
-alias cda='conda deactivate'

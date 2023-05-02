@@ -46,7 +46,7 @@ main() {
     fi
 
     info "${BLUE}Read parameters:${NOFORMAT}"
-    dump_vars VERBOSE FORCE OFFLINE KEEP NO_INSTALLS TARGET_DIR
+    dump_vars VERBOSE FORCE OFFLINE KEEP NO_INSTALLS TARGET_DIR CONDA_SUBDIR
     msg
 
     SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)

@@ -56,6 +56,7 @@ def main(run_function=run):
     env = dict(
         HOME=home,
         CONDARC=env_path("CONDARC"),
+        CONDA_SUBDIR=environ.get("CONDA_SUBDIR", "")
     )
     info(f"{env=}")
     if len(environ["VERBOSE"]) > 1:

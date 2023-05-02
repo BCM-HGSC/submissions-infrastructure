@@ -19,7 +19,7 @@ Available options:
 -h, --help          Print this help and exit.
 -v, --verbose       Print script debug info.
 --no-color          Turn off color output.
---force             Use existing infrastructure!
+--force             Erase existing tier in current infrastructure!
 --offline           No internet usage
 -k, --keep          Keep and use current deployment engine
 -n, --no-installs   No conda or pip installs, just skeleton

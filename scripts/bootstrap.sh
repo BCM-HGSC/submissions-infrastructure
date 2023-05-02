@@ -19,10 +19,10 @@ Available options:
 -h, --help          Print this help and exit.
 -v, --verbose       Print script debug info.
 --no-color          Turn off color output.
---force             Force overwriting existing infrastructure!
+--force             Erase existing tier in current infrastructure!
 --offline           No internet usage
 -k, --keep          Keep and use current deployment engine
--n, --no-installs   No conda or pip installs, just skeleton and condarc
+-n, --no-installs   No conda or pip installs, just skeleton
 
 Environment:
 CONDA: optional path to a conda executable
@@ -46,7 +46,7 @@ main() {
     fi
 
     info "${BLUE}Read parameters:${NOFORMAT}"
-    dump_vars VERBOSE FORCE OFFLINE KEEP NO_INSTALLS TARGET_DIR
+    dump_vars VERBOSE FORCE OFFLINE KEEP NO_INSTALLS TARGET_DIR CONDA_SUBDIR
     msg
 
     SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
@@ -62,7 +62,6 @@ main() {
     export CONDA_ENVS_DIRS="$RESOLVED_TARGET/infrastructure/production/conda/envs"
     export CONDA_PKGS_DIRS="$RESOLVED_TARGET"/conda_package_cache
     export HOME="$RESOLVED_TARGET"/engine_home
-    export CONDARC="$RESOLVED_TARGET"/infrastructure/staging/condarc
 
     use_miniconda3_in_temp_for_conda_if_necessary
 
@@ -124,26 +123,15 @@ setup_target() {
         if [[ -z $FORCE ]]; then
             die "$TARGET_DIR/infrastructure already exists"
         else
-            warning "overwriting $RESOLVED_TARGET/infrastructure"
-            rm -rf infrastructure
+            warning "Overwriting $RESOLVED_TARGET/infrastructure"
         fi
     fi
-    mkdir -p conda_package_cache engine_home infrastructure user_envs
-    if ! ls $RESOLVED_TARGET/condarc &> /dev/null; then
-        info 'Creating condarc symlink'
-        ln -s infrastructure/production/condarc
-    fi
+    mkdir -p conda_package_cache engine_home infrastructure
     cd infrastructure
-    mkdir -p blue green testing blue/{bin,etc} blue/conda/{def,envs}
-    ln -s blue staging
-    touch staging/condarc
-    write_condarc
-}
-
-write_condarc() {
-    local condarc_template=$RESOURCES_DIR/condarc.m4
-    m4 -D RESOLVED_TARGET=$RESOLVED_TARGET \
-       -D ENVIRONMENT_NAME=blue $condarc_template > staging/condarc
+    mkdir -p blue green testing
+    if [[ ! -e staging ]]; then
+        ln -s blue staging
+    fi
 }
 
 get_conda() {

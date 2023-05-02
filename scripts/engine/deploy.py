@@ -36,6 +36,9 @@ def deploy_tier(
     if tier_path == prod_path:
         critical(f"attempt to modify {prod_path=}")
         exit(4)
+    if tier_path.exists() and mode == "force":
+        rmtree(tier_path)
+        tier_path.mkdir()
     deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
     if deployer.mode != "keep":
         deployer.info()
@@ -100,7 +103,6 @@ class MambaDeployer:
         self.meta_dir = tier_path / "meta"
         self.env = dict(
             HOME=target / "engine_home",
-            # CONDARC=tier_path / "condarc",
             CONDA_ENVS_DIRS=self.envs_dir,
             CONDA_PKGS_DIRS=target / "conda_package_cache",
             CONDA_CHANNELS="conda-forge",
@@ -131,7 +133,8 @@ class MambaDeployer:
                 return 0
         elif self.mode == "force":
             options.append("--force")
-        options.append("--offline")
+        if self.offline:
+            options.append("--offline")
         mamba_command = [MAMBA, "env", "create"] + options
         mamba_command += ["-n", env_name, "-f", DEFS_DIR / env_yaml]
         if self.dry_run:

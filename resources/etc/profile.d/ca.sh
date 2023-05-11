@@ -29,7 +29,7 @@ ca() {
     fi
 }
 
-if [[ $ZSH_NAME ]]; then
+if [[ -n $ZSH_NAME ]]; then
     # Define the zsh completer function
     _ca_complete() {
         local envs
@@ -46,7 +46,7 @@ if [[ $ZSH_NAME ]]; then
     compdef _ca_complete ca
 fi
 
-if [[ $BASH ]]; then
+if [[ -n $BASH ]]; then
     # Define the bash completer function
     _ca_complete() {
         local envs

@@ -37,6 +37,7 @@ dependencies:
   - pre-commit
   - py
   - pycodestyle
+  - pydantic
   - pyexcel
   - pyexcel-io
   - pyexcel-xls

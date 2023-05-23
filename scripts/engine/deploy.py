@@ -6,6 +6,7 @@ Module responsible for actually deploying sofwware to a tier.
 from datetime import datetime as dt
 from logging import critical, debug, error, info, warning
 from pathlib import Path
+from re import match
 from shutil import copytree, rmtree
 from subprocess import DEVNULL, PIPE, STDOUT, run
 from sys import executable, platform
@@ -36,11 +37,13 @@ def deploy_tier(
     if tier_path == prod_path:
         critical(f"attempt to modify {prod_path=}")
         exit(4)
-    if tier_path.exists() and mode == "force":
-        rmtree(tier_path)
-        tier_path.mkdir()
-    deployer = MambaDeployer(target, tier_path, dry_run, offline, mode, run_function)
-    if deployer.mode != "keep":
+    keep = (mode == "keep")
+    if tier_path.exists() and not keep:
+        if match(r"^(dev.*|test.*|staging)$", tier) or  mode == "force":
+            rmtree(tier_path)
+            tier_path.mkdir()
+    deployer = MambaDeployer(target, tier_path, dry_run, offline, keep, run_function)
+    if deployer.keep:
         deployer.info()
     worklist = list_conda_environment_defs()
     deployer.deploy_conda_environments(worklist)
@@ -90,12 +93,12 @@ class MambaDeployer:
         tier_path: Path,
         dry_run: bool,
         offline: bool,
-        mode: Optional[str],
+        keep: bool=False,
         run_function=run,
     ):
         self.dry_run = dry_run
         self.offline = offline
-        self.mode = mode
+        self.keep = keep
         self.run_function = run_function
         self.envs_dir = tier_path / "conda/envs"
         self.bin_dir = tier_path / "bin"
@@ -126,13 +129,11 @@ class MambaDeployer:
     def deploy_env(self, env_yaml: Path) -> int:
         env_name = env_yaml.stem
         options = []
-        if self.mode == "keep":
+        if self.keep:
             env_dir = self.envs_dir / env_name
             if env_dir.is_dir():
                 info(f"using existing environment: {env_dir!s}")
                 return 0
-        elif self.mode == "force":
-            options.append("--force")
         if self.offline:
             options.append("--offline")
         mamba_command = [MAMBA, "env", "create"] + options
@@ -158,7 +159,7 @@ class MambaDeployer:
 
     def copy_resource_dir(self, src_dir, dst_dir):
         if dst_dir.exists():
-            if self.mode != "keep":
+            if self.keep:
                 warning(f"destination dir already exists: {dst_dir}")
             info(f"clearing {dst_dir}")
             rmtree(dst_dir)

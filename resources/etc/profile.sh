@@ -48,6 +48,7 @@ unset __add_env_if_exists
 unset __CONDA_ENVS_DIR
 
 export CONDARC="$IAC_TIER_DIR/etc/condarc"
+export MAMBA_NO_BANNER=1
 
 iac_dump_vars() {
     echo "IAC_TIER_DIR=$IAC_TIER_DIR"

@@ -29,6 +29,7 @@ dependencies:
   - markdown2
   - markupsafe
   - matplotlib
+  - nbdime
   - openpyxl
   - pandas
   - paramiko

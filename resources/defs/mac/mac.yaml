@@ -13,3 +13,4 @@ dependencies:
   - sed
   - tmux
   - wget
+  - which

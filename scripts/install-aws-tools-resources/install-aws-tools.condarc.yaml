@@ -1,0 +1,6 @@
+channels:
+  - conda-forge
+envs_dirs:
+  - ${AWS_ROOT}/cache/${USER}/conda/envs  # personal
+pkgs_dirs:
+  - ${AWS_ROOT}/cache/${USER}/conda/pkgs  # personal

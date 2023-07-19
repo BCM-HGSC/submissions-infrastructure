@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Version 1.0.1
+# Version 1.0.1+dev
 
 # Install script for /hgsccl_software/prod/aws/venv
 

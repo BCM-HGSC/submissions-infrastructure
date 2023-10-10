@@ -15,8 +15,7 @@ from .logging import config_logging
 def exec() -> NoReturn:
     """
     Replace the current Python process with the python interpreter in the engine.
-    Run __main__.py, passing in the tier, target, and any other arguments.
-    Use the stem of sys.argv[0] for the tier.
+    Run __main__.py, passing in all command-line arguments.
     """
     config_logging()
     info(f"{executable=}")

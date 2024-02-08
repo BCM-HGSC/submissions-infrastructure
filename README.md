@@ -42,7 +42,7 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 ## Execution
 
 1. Clone or download the software.
-2. `bash /path/to/submissions-infrastructure/scripts/bootstrap.sh -h`
+2. `bash path/to/project/scripts/bootstrap.sh -h`
 
 ## Sources
 

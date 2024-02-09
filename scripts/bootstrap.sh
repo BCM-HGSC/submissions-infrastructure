@@ -240,9 +240,12 @@ dump_vars() {
 }
 
 dump_var() {
-    local var_name=$1
-    local value="${!var_name}"
-    info "$var_name=$value"
+    local var_name="$1"
+    if [[ -n ${!var_name+x} ]]; then
+        info "$var_name='${!var_name}'"
+    else
+        info "$var_name=UNDEFINED"
+    fi
 }
 
 die() {

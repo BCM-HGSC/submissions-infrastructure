@@ -49,10 +49,13 @@ main() {
     dump_vars VERBOSE FORCE OFFLINE KEEP NO_INSTALLS TARGET_DIR CONDA_SUBDIR
     msg
 
-    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd -P)
     RESOURCES_DIR=$(cd $SCRIPT_DIR/../resources && pwd -P)
     mkdir -p "$TARGET_DIR"
-    RESOLVED_TARGET=$(cd -P "$TARGET_DIR"; pwd)
+    RESOLVED_TARGET=$(
+        cd -P "$TARGET_DIR"
+        pwd
+    )
     dump_vars SCRIPT_DIR RESOURCES_DIR RESOLVED_TARGET
 
     setup_target
@@ -138,14 +141,14 @@ setup_target() {
 
 get_conda() {
     # Set CONDA if not set and available in PATH.
-    if [[ ! -x "${CONDA:=}" ]]; then
-        if [[ -n "$CONDA" ]]; then
+    if [[ ! -x ${CONDA:=} ]]; then
+        if [[ -n $CONDA ]]; then
             warning "CONDA=$CONDA"
             warning "Supplied vaule of CONDA is not executable."
         fi
-        CONDA=$(command -v conda || :)  # will be "" if not found in PATH
-        if [[ -n "$CONDA" ]]; then
-            if [[ ! -x "$CONDA" ]]; then
+        CONDA=$(command -v conda || :) # will be "" if not found in PATH
+        if [[ -n $CONDA ]]; then
+            if [[ ! -x $CONDA ]]; then
                 warning "CONDA from PATH is not executable."
                 warning "CONDA=$CONDA (bad value in PATH)"
             else
@@ -167,32 +170,36 @@ get_micromamba_platform_arch() {
     info "UPLATFORM=$UPLATFORM"
     case $UPLATFORM in
         Linux)
-            PLATFORM="linux" ;;
+            PLATFORM="linux"
+            ;;
         Darwin)
-            PLATFORM="osx" ;;
+            PLATFORM="osx"
+            ;;
         *)
-            PLATFORM="UNSUPPORTED" ;;
+            PLATFORM="UNSUPPORTED"
+            ;;
     esac
 
     local UARCH="$(uname -m)"
     info "UARCH=$UARCH"
     case "$UARCH" in
-        aarch64|ppc64le|arm64)
-            ARCH=$UARCH ;;  # pass
+        aarch64 | ppc64le | arm64)
+            ARCH=$UARCH
+            ;; # pass
         x86_64)
-            ARCH="64" ;;
+            ARCH="64"
+            ;;
         *)
-            ARCH="UNSUPPORTED" ;;
+            ARCH="UNSUPPORTED"
+            ;;
     esac
 
     case "$PLATFORM-$ARCH" in
-        linux-aarch64|linux-ppc64le|linux-64|osx-arm64|osx-64|win-64)
-            ;;  # pass
+        linux-aarch64 | linux-ppc64le | linux-64 | osx-arm64 | osx-64 | win-64) ;; # pass
         *)
             die "Failed to detect your OS"
             ;;
     esac
-
 
 }
 
@@ -236,7 +243,7 @@ check_os() {
     case "$u" in
         Darwin) plat=MacOSX ;;
         Linux) plat=Linux ;;
-        *) die "unknown platform $u"
+        *) die "unknown platform $u" ;;
     esac
 }
 
@@ -318,7 +325,7 @@ msg() {
 }
 
 setup_colors() {
-    if [[ -t 2 ]] && [[ -z "${NO_COLOR-}" ]] && [[ "${TERM-}" != "dumb" ]]; then
+    if [[ -t 2 ]] && [[ -z ${NO_COLOR-} ]] && [[ ${TERM-} != "dumb" ]]; then
         NOFORMAT='\033[0m' RED='\033[0;31m' GREEN='\033[0;32m' ORANGE='\033[0;33m' BLUE='\033[0;34m' PURPLE='\033[0;35m' CYAN='\033[0;36m' YELLOW='\033[1;33m'
     else
         NOFORMAT='' RED='' GREEN='' ORANGE='' BLUE='' PURPLE='' CYAN='' YELLOW=''

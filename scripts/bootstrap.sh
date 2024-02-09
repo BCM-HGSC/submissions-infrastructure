@@ -123,14 +123,16 @@ setup_target() {
         if [[ -z $FORCE ]]; then
             die "$TARGET_DIR/infrastructure already exists"
         else
-            warning "Overwriting $RESOLVED_TARGET/infrastructure"
+            warning "Erasing $RESOLVED_TARGET/infrastructure"
+            rm -rf "$RESOLVED_TARGET/infrastructure"
         fi
     fi
     mkdir -p conda_package_cache engine_home infrastructure
     cd infrastructure
-    mkdir -p blue green testing
+    mkdir -p blue green
     if [[ ! -e staging ]]; then
         ln -s blue staging
+        ln -s green production
     fi
 }
 
@@ -154,6 +156,44 @@ get_conda() {
             warning "PATH=$PATH"
         fi
     fi
+}
+
+fetch_micromamba() {
+}
+
+get_micromamba_platform_arch() {
+    # Set $PLATFORM and $ARCH.
+    local UPLATFORM="$(uname)"
+    info "UPLATFORM=$UPLATFORM"
+    case $UPLATFORM in
+        Linux)
+            PLATFORM="linux" ;;
+        Darwin)
+            PLATFORM="osx" ;;
+        *)
+            PLATFORM="UNSUPPORTED" ;;
+    esac
+
+    local UARCH="$(uname -m)"
+    info "UARCH=$UARCH"
+    case "$UARCH" in
+        aarch64|ppc64le|arm64)
+            ARCH=$UARCH ;;  # pass
+        x86_64)
+            ARCH="64" ;;
+        *)
+            ARCH="UNSUPPORTED" ;;
+    esac
+
+    case "$PLATFORM-$ARCH" in
+        linux-aarch64|linux-ppc64le|linux-64|osx-arm64|osx-64|win-64)
+            ;;  # pass
+        *)
+            die "Failed to detect your OS"
+            ;;
+    esac
+
+
 }
 
 use_miniconda3_in_temp_for_conda_if_necessary() {
@@ -208,7 +248,7 @@ deploy_engine() {
     export CONDA OFFLINE VERBOSE
     cd "$HOME"
     msg
-    run_python bootstrap_engine.py
+    CONDARC=/dev/null run_python bootstrap_engine.py
 }
 
 run_python() {
@@ -221,7 +261,7 @@ run_python() {
 cleanup() {
     trap - SIGINT SIGTERM ERR EXIT
     # script cleanup here
-    cd
+    cd /
     info ${BLUE}CLEANUP${NOFORMAT}
     if [[ -e ${my_tmp_dir-} ]]; then
         info "rm -rf $my_tmp_dir"
@@ -231,13 +271,17 @@ cleanup() {
 } >&2
 
 dump_vars() {
+    local name
     for name in $@; do dump_var $name; done
 }
 
 dump_var() {
-    local var_name=$1
-    local value="${!var_name}"
-    info "$var_name=$value"
+    local var_name="$1"
+    if [[ -n ${!var_name+x} ]]; then
+        info "$var_name='${!var_name}'"
+    else
+        info "$var_name=UNDEFINED"
+    fi
 }
 
 die() {

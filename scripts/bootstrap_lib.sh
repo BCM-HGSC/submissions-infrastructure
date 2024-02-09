@@ -161,6 +161,48 @@ get_conda() {
     fi
 }
 
+fetch_micromamba() {
+}
+
+get_micromamba_platform_arch() {
+    # Set $PLATFORM and $ARCH.
+    local UPLATFORM="$(uname)"
+    info "UPLATFORM=$UPLATFORM"
+    case $UPLATFORM in
+        Linux)
+            PLATFORM="linux"
+            ;;
+        Darwin)
+            PLATFORM="osx"
+            ;;
+        *)
+            PLATFORM="UNSUPPORTED"
+            ;;
+    esac
+
+    local UARCH="$(uname -m)"
+    info "UARCH=$UARCH"
+    case "$UARCH" in
+        aarch64 | ppc64le | arm64)
+            ARCH=$UARCH
+            ;; # pass
+        x86_64)
+            ARCH="64"
+            ;;
+        *)
+            ARCH="UNSUPPORTED"
+            ;;
+    esac
+
+    case "$PLATFORM-$ARCH" in
+        linux-aarch64 | linux-ppc64le | linux-64 | osx-arm64 | osx-64 | win-64) ;; # pass
+        *)
+            die "Failed to detect your OS"
+            ;;
+    esac
+
+}
+
 use_miniconda3_in_temp_for_conda_if_necessary() {
     # If CONDA is unset, ownload and install Miniconda3 in order to set CONDA.
     if [[ ! -x ${CONDA-} ]]; then

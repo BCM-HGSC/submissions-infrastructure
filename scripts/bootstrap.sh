@@ -132,9 +132,10 @@ setup_target() {
     fi
     mkdir -p conda_package_cache engine_home infrastructure
     cd infrastructure
-    mkdir -p blue green testing
+    mkdir -p blue green
     if [[ ! -e staging ]]; then
         ln -s blue staging
+        ln -s green production
     fi
 }
 

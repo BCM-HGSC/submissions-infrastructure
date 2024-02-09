@@ -213,7 +213,7 @@ deploy_engine() {
     export CONDA OFFLINE VERBOSE
     cd "$HOME"
     msg
-    run_python bootstrap_engine.py
+    CONDARC=/dev/null run_python bootstrap_engine.py
 }
 
 run_python() {

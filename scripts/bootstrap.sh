@@ -126,7 +126,8 @@ setup_target() {
         if [[ -z $FORCE ]]; then
             die "$TARGET_DIR/infrastructure already exists"
         else
-            warning "Overwriting $RESOLVED_TARGET/infrastructure"
+            warning "Erasing $RESOLVED_TARGET/infrastructure"
+            rm -rf "$RESOLVED_TARGET/infrastructure"
         fi
     fi
     mkdir -p conda_package_cache engine_home infrastructure

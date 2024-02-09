@@ -236,6 +236,7 @@ cleanup() {
 } >&2
 
 dump_vars() {
+    local name
     for name in $@; do dump_var $name; done
 }
 

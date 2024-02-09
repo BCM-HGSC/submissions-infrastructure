@@ -226,7 +226,7 @@ run_python() {
 cleanup() {
     trap - SIGINT SIGTERM ERR EXIT
     # script cleanup here
-    cd
+    cd /
     info ${BLUE}CLEANUP${NOFORMAT}
     if [[ -e ${my_tmp_dir-} ]]; then
         info "rm -rf $my_tmp_dir"

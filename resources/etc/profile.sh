@@ -71,6 +71,16 @@ PATH=~/bin:"$IAC_DIR/bin":"$IAC_TIER_DIR/bin":"$PATH"
 
 export PATH
 
+if [[ -n $ZSH_NAME ]]; then
+    # If we don't have Oh My zsh or something similar, we need this for the
+    # completers defined in profile.d to work:
+    # TODO: Test this.
+    whence compdef &>/dev/null || {
+        autoload -Uz compinit
+        compinit
+    }
+fi
+
 for i in "$IAC_TIER_DIR"/etc/profile.d/*.sh ; do
     if [ -r "$i" ]; then
         . "$i"

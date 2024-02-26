@@ -1,3 +1,7 @@
-build
 __pycache__
 .conda
+.env
+.venv
+build
+env
+venv

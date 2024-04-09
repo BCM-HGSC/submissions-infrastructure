@@ -37,9 +37,9 @@ def deploy_tier(
     if tier_path == prod_path:
         critical(f"attempt to modify {prod_path=}")
         exit(4)
-    keep = (mode == "keep")
+    keep = mode == "keep"
     if tier_path.exists() and not keep:
-        if match(r"^(dev.*|test.*|staging)$", tier) or  mode == "force":
+        if match(r"^(dev.*|test.*|staging)$", tier) or mode == "force":
             rmtree(tier_path)
             tier_path.mkdir()
     deployer = MambaDeployer(target, tier_path, dry_run, offline, keep, run_function)
@@ -93,7 +93,7 @@ class MambaDeployer:
         tier_path: Path,
         dry_run: bool,
         offline: bool,
-        keep: bool=False,
+        keep: bool = False,
         run_function=run,
     ):
         self.dry_run = dry_run

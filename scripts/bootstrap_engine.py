@@ -15,7 +15,16 @@ OFFLINE: if set run conda create with the --offline option
 VERBOSE: if set, logging level is DEBUG, otherwise INFO
 """
 
-from logging import DEBUG, INFO, StreamHandler, basicConfig, error, critical, info, debug
+from logging import (
+    DEBUG,
+    INFO,
+    StreamHandler,
+    basicConfig,
+    error,
+    critical,
+    info,
+    debug,
+)
 from os import environ
 from pathlib import Path
 from shutil import rmtree
@@ -24,6 +33,7 @@ from sys import argv, executable, exit, stderr
 
 try:
     from rich.logging import RichHandler
+
     ROOT_HANDLER = RichHandler(show_time=False)
     ROOT_FORMAT = "%(message)s"
 except:
@@ -51,12 +61,12 @@ def main(run_function=run):
     conda_opts = ["--offline"] if environ["OFFLINE"] else []
     debug(f"{conda_opts=}")
     conda_command = [conda, "env", "create"] + conda_opts
-    conda_command +=  ["-p", engine_path, "-f", engine_yaml]
+    conda_command += ["-p", engine_path, "-f", engine_yaml]
     info(f"{conda_command=}")
     env = dict(
         HOME=home,
         CONDARC=env_path("CONDARC"),
-        CONDA_SUBDIR=environ.get("CONDA_SUBDIR", "")
+        CONDA_SUBDIR=environ.get("CONDA_SUBDIR", ""),
     )
     info(f"{env=}")
     if len(environ["VERBOSE"]) > 1:

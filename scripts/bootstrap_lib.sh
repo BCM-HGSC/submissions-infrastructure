@@ -289,5 +289,3 @@ setup_colors() {
         NOFORMAT='' RED='' GREEN='' ORANGE='' BLUE='' PURPLE='' CYAN='' YELLOW=''
     fi
 }
-
-main "$@"

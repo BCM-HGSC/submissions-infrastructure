@@ -1,5 +1,5 @@
 channels:
   - conda-forge
 dependencies:
-  - go-shfmt
-  - moreutils
+  - nodejs
+  - pv

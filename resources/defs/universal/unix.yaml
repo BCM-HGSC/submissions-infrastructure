@@ -3,12 +3,18 @@ channels:
 dependencies:
   - bat
   - broot
+  - daff
   - exa
   - fzf
   - git-delta
   - git-lfs
   - lftp
+  - lsd-rust
   - mc
   - ncdu
-  - pv
+  - pls
+  - pandoc
+  - rclone
+  - ruff
   - tree
+  - uv

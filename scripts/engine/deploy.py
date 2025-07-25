@@ -136,11 +136,11 @@ class MambaDeployer:
                 return 0
         if self.offline:
             options.append("--offline")
-        mamba_command = [MAMBA, "env", "create"] + options
+        mamba_command = [MAMBA, "env", "create", "-y"] + options
         mamba_command += ["-n", env_name, "-f", DEFS_DIR / env_yaml]
         if self.dry_run:
             mamba_command[:0] = ["/usr/bin/env", "echo"]
-        debug(f"{mamba_command=}")
+        info(f"{mamba_command=}")
         timestamp = dt.now().strftime("%Y%m%d-%H%M%S")
         log_path = self.log_dir / f"{timestamp}-{env_yaml.stem}.log"
         info(f"{log_path=}")

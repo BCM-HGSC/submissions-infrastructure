@@ -37,10 +37,11 @@ function unlockd() { chmod +w ${1:-.}; }
 
 
 if [[ $(uname -s) == "Darwin" ]]; then
-    eject() { diskutil eject /Volumes/"$1"; }
-    [[ -n $BASH ]] && complete -o nospace -C list-volumes eject
+    _list_volumes() { ls /Volumes | egrep "^$2"; }
+    eject() { diskutil unmount "$1"; }
+    [[ -n $BASH ]] && complete -o nospace -C _list_volumes eject
     if [[ -n $ZSH_NAME ]]; then
-        _list_volumes() { _values $(list-volumes); }
-        compdef _list_volumes eject
+        _list_volumes_zsh() { _values $(_list_volumes); }
+        compdef _list_volumes_zsh eject
     fi
 fi

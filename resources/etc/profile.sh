@@ -25,6 +25,10 @@ export IAC_DIR=$(dirname "$IAC_TIER_DIR")
 export IAC_PARENT=$(dirname "$IAC_DIR")
 export IAC_TIER_NAME=$(basename $(dirname $(dirname "$__temp_arg0")))
 
+export CONDARC="$IAC_TIER_DIR/etc/condarc"
+export MAMBA_NO_BANNER=1
+export MAMBA_ROOT_PREFIX="$IAC_TIER_DIR/conda/envs/conda"
+
 __CONDA_ENVS_DIR="$IAC_TIER_DIR/conda/envs"
 
 __add_env_if_exists() {
@@ -46,9 +50,6 @@ source "$__CONDA_ENVS_DIR/conda/etc/profile.d/mamba.sh"
 
 unset __add_env_if_exists
 unset __CONDA_ENVS_DIR
-
-export CONDARC="$IAC_TIER_DIR/etc/condarc"
-export MAMBA_NO_BANNER=1
 
 iac_dump_vars() {
     echo "IAC_TIER_DIR=$IAC_TIER_DIR"

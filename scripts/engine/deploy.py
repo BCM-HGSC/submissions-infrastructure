@@ -76,7 +76,9 @@ def setup_tier_path(target, tier):
 
 def list_conda_environment_defs() -> list[Path]:
     worklist = sorted(DEFS_DIR.glob("universal/*.yaml"))
-    if platform == "darwin":
+    if platform == "linux":
+        worklist.append(DEFS_DIR / "linux/linux.yaml")
+    elif platform == "darwin":
         worklist.append(DEFS_DIR / "mac/mac.yaml")
     for item in worklist:
         if not item.is_file():

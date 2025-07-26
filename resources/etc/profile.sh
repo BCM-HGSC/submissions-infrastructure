@@ -41,6 +41,7 @@ __add_env_if_exists() {
 __add_env_if_exists experimental
 __add_env_if_exists unix
 __add_env_if_exists mac
+__add_env_if_exists linux
 __add_env_if_exists bioconda
 __add_env_if_exists python
 

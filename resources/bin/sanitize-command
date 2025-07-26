@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Run a command in a sanitized environment.
+
+# By default:
+# HOME: set to the current working directory
+# PATH: set to /usr/bin:/bin
+
+# To see the sanitized environment:
+# sanitize-command env
+
+# To specify home directory:
+# sanitize-command HOME=SOME_DIR YOUR COMMAND
+
+# To remove any useful concept of a home directory:
+# sanitize-command HOME=/dev/null YOUR COMMAND
+
+
+exec /usr/bin/env -i HOME="$(pwd)" LOGNAME=$LOGNAME USER=$USER \
+    PATH=/usr/bin:/bin \
+    SHELL=$SHELL \
+    TERM="$TERM" \
+    __SANITIZED_ENV=1 \
+    "$@"

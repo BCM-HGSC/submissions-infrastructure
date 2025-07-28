@@ -5,7 +5,7 @@ Promote the staging tier to production.
 
 This script will:
 
-- Read the current tier path from the command line.
+- Read the current tier path from the environment (IAC_TIER_DIR).
 - Take the parent of the tier path as the target path.
 - Find the target of "staging" symlink.
 - Require that the target be blue or green.

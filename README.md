@@ -1,50 +1,69 @@
 # submissions-infrastructure
 
-Code to generate on-prem code infrastructure for the Submissions team at BCM-HGSC using conda
+Code to generate on-prem code infrastructure for the Submissions team at BCM-HGSC using mamba (a faster implementation of conda)
+
+## Operation
+
+### Outline
+
+1. Clone or download the software.
+2. Run commands in the scripts directory to create and update infrastructure.
 
 ## Layout
 
-- some other team or application
-- submissions
-  - condarc -> infrastructure/production/condarc
-  - conda_package_cache
-  - config (any configuration for installing/updating infrastructure)
-  - engine_home (non-user HOME containing machinery)
-    - .conda (implementation detail)
-    - .condrc (not present by default)
-    - Library (implementation detail)
-    - engine_a (conda environment containing conda and pip)
-    - engine -> engine_a (or engine_b if we re-bootstrapped the engine)
-  - user_envs
-    - hale
-    - eskinner
-    - ...
-  - infrastructure
-    - blue
-      - bin
-      - etc (all automatically generated or installed "config" or "profile" items)
-      - condarc (master file)
-      - conda
-        - defs (YAML definitions of the envs)
-        - envs
-          - conda (our copy of the conda machinery)
-            - condarc -> ../../condarc
-          - bio (any bioinformatics tools we pull from bioconda)
-          - main (all python stuff we pull from conda-forge)
-          - unix (any unix tools we pull from conda-forge)
-    - green (duplicate of blue)
-    - production (symlink to blue or green)
-    - staging (symlink to blue or green)
-    - testing
-  - etc -> infrastructure/current/etc
-- some other team or application
+After running these commands:
 
-## Execution
+```bash
+scripts/bootstrap TARGET_DIR
+scripts/iac staging TARGET_DIR
+```
 
-1. Clone or download the software.
-2. `bash path/to/project/scripts/bootstrap.sh -h`
+The layout would be:
 
-## Sources
+```
+TARGET_DIR
+├── conda_package_cache
+├── engine_home
+│   ├── engine -> engine_a
+│   ├── engine_a
+│   │   ├── bin
+│   │   ├── conda-meta
+│   │   ├── condabin
+│   │   ├── etc
+│   │   ├── include
+│   │   ├── lib
+│   │   ├── libexec
+│   │   ├── man
+│   │   ├── sbin
+│   │   ├── share
+│   │   ├── shell
+│   │   └── ssl
+│   ├── Library
+│   │   └── Caches
+│   └── micromamba
+└── infrastructure
+    ├── blue
+    │   ├── bin
+    │   ├── conda
+    │   ├── etc
+    │   ├── logs
+    │   └── meta
+    ├── green
+    ├── production -> green
+    └── staging -> blue
+```
 
-- https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-- https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+This command will switch the production and staging symlinks:
+
+```bash
+# Requires that IAC_TIER_DIR be in the environment
+scripts/promote_staging
+```
+
+## Commands
+
+- `scripts/bootstrap`: create a new fresh start infrastructure.
+- `scripts/iac`: create a "tier" - a complete collection of software, Requires that bootstrap has been run on the target location.
+- `scripts/bootstrap-engine`: update the "engine" - the system used to create tiers. Used by bootstrap.
+- `scripts/fetch-micromamba`: download a copy of micromamba to the specified location. Used by bootstrap-engine.
+- `scripts/promote_staging`: switches the symlinks between production and staging.

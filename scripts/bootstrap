@@ -1,0 +1,159 @@
+#!/bin/bash
+
+# Starting with just bash, posix and curl, bootstrap our infrastructure.
+# When done, the filesystem will look like this:
+#
+# TARGET_DIR
+# ├── conda_package_cache  (contents hidden for brevity)
+# ├── engine_home
+# │   ├── engine -> engine_a
+# │   ├── engine_a
+# │   │   ├── bin
+# │   │   ├── conda-meta
+# │   │   ├── condabin
+# │   │   ├── etc
+# │   │   ├── include
+# │   │   ├── lib
+# │   │   ├── libexec
+# │   │   ├── man
+# │   │   ├── sbin
+# │   │   ├── share
+# │   │   ├── shell
+# │   │   └── ssl
+# │   └── micromamba
+# └── infrastructure
+#     ├── blue
+#     ├── green
+#     ├── production -> green
+#     └── staging -> blue
+#
+# The contents of the active engine are defined by resources/defs/special/engine.yaml
+
+set -euo pipefail
+
+# Default values
+OFFLINE=""
+FORCE=""
+VERBOSE=""
+YES=""
+TARGET_DIR=""
+
+main() {
+    parse_args "$@"
+
+    log_info "Starting bootstrap infrastructure"
+    log_debug "Arguments: TARGET_DIR=$TARGET_DIR, OFFLINE=$OFFLINE, VERBOSE=$VERBOSE, YES=$YES"
+
+    determine_locations
+
+    "$SCRIPT_DIR"/bootstrap-engine "$TARGET_DIR" $OFFLINE $VERBOSE -y
+
+    setup_target
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --offline)
+                OFFLINE="--offline"
+                shift
+                ;;
+            --force)
+                FORCE=y
+                shift
+                ;;
+            -v|--verbose)
+                VERBOSE="--verbose"
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -*)
+                die "Unknown option: $1"
+                ;;
+            *)
+                if [[ -n "$TARGET_DIR" ]]; then
+                    die "Too many arguments"
+                fi
+                TARGET_DIR="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$TARGET_DIR" ]]; then
+        die "TARGET_DIR argument is required"
+    fi
+}
+
+determine_locations() {
+    # Get the directory containing this script, then go up one level
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    log_debug "SCRIPT_DIR=$SCRIPT_DIR"
+}
+
+setup_target() {
+    cd "$TARGET_DIR"
+    if [[ -e infrastructure ]]; then
+        if [[ -z $FORCE ]]; then
+            die "$TARGET_DIR/infrastructure already exists"
+        else
+            warning "Erasing $TARGET_DIR/infrastructure"
+            rm -rf "$TARGET_DIR/infrastructure"
+        fi
+    fi
+    mkdir -p conda_package_cache engine_home infrastructure
+    cd infrastructure
+    mkdir -p blue green
+    if [[ ! -e staging ]]; then
+        ln -s blue staging
+        ln -s green production
+    fi
+}
+
+usage() {
+    cat << EOF
+Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--force] TARGET_DIR
+
+Create TARGET_DIR if it does not already exist, and populated it with  a
+subdirectory named "conda_package_cache" and another subdirectory named
+"infrastructure". It is an error if "infrastructure" already exists unless
+the --force option is applied.
+
+Following the creation of the infrastructure directory, this script will create
+engine_home if it does not already exist and then install or update the engine.
+
+Available options:
+
+-h, --help          Print this help and exit.
+-v, --verbose       Print script debug info.
+--no-color          Turn off color output.
+--offline           No internet usage
+--force             Erase existing tier in current infrastructure!
+
+EOF
+    exit
+}
+
+die() {
+    log_error "$1"
+    exit "${2:-1}"
+}
+
+log_info() {
+    echo "INFO: $*" >&2
+}
+
+log_debug() {
+    if [[ -n "$VERBOSE" ]]; then
+        echo "DEBUG: $*" >&2
+    fi
+}
+
+log_error() {
+    echo "ERROR: $*" >&2
+}
+
+main "$@"

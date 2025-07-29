@@ -57,7 +57,7 @@ def deploy_tier(
 def check_mamba():
     info(f"{MAMBA=}")
     if not MAMBA.is_file():
-        critical(f"mamba is missing")
+        critical("mamba is missing")
         exit(2)
 
 

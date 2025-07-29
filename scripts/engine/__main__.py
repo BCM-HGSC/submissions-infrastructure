@@ -29,8 +29,8 @@ def parse_command_line(cli_args):
     `python3 -m engine TIER TARGET_DIR`
     """
     parser = ArgumentParser(description="Deploy infrastructure")
-    parser.add_argument("tier")
     parser.add_argument("target", type=dir_path)
+    parser.add_argument("tier")
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("-n", "--dry-run", action="store_true")
     parser.add_argument(

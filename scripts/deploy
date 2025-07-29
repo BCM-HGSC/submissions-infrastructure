@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# - Locate SCRIPT_DIR (the directory containing this script).
+# - Extract TARGET_DIR from the command line.
+# - Capture the remaining command line arguments.
+# - Setup the PYTHONPATH environment variable.
+# - Invoke $TARGET_DIR/engine_home/engine/bin/python3 -m engine "$@"
+
+set -euo pipefail
+
+# Default values
+TARGET_DIR=""
+
+main() {
+    parse_args "$@"  # get TARGET_DIR and ARGS
+
+    # Get the directory containing this script, then go up one level
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    # Run command in sanitized environment
+    cd "$TARGET_DIR"
+    "$SCRIPT_DIR/sanitize-command" \
+        PYTHONPATH="$SCRIPT_DIR" \
+        engine_home/engine/bin/python3 -m engine "${ARGS[@]}"
+}
+
+parse_args() {
+    local remaining_args=()
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                ARGS=(--help)
+                return
+                ;;
+            -*)
+                remaining_args+=("$1")
+                shift
+                ;;
+            *)
+                if [[ -n "$TARGET_DIR" ]]; then
+                    remaining_args+=("$1")
+                else
+                    TARGET_DIR="$(cd "$1" && pwd)"
+                fi
+                shift
+                ;;
+        esac
+    done
+    if [[ ${#remaining_args[@]} -gt 0 ]]; then
+        ARGS=("$TARGET_DIR" "${remaining_args[@]}")
+    else
+        ARGS=("$TARGET_DIR")
+    fi
+}
+
+main "$@"

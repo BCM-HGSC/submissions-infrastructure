@@ -15,7 +15,7 @@ After running these commands:
 
 ```bash
 scripts/bootstrap TARGET_DIR
-scripts/iac staging TARGET_DIR
+scripts/deploy TARGET_DIR staging
 ```
 
 The layout would be:
@@ -63,7 +63,7 @@ scripts/promote_staging
 ## Commands
 
 - `scripts/bootstrap`: create a new fresh start infrastructure.
-- `scripts/iac`: create a "tier" - a complete collection of software, Requires that bootstrap has been run on the target location.
+- `scripts/deploy`: create a "tier" - a complete collection of software, Requires that bootstrap has been run on the target location.
 - `scripts/bootstrap-engine`: update the "engine" - the system used to create tiers. Used by bootstrap.
 - `scripts/fetch-micromamba`: download a copy of micromamba to the specified location. Used by bootstrap-engine.
 - `scripts/promote_staging`: switches the symlinks between production and staging.

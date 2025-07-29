@@ -10,7 +10,7 @@ from pathlib import Path
 from sys import argv, executable
 
 from .deploy import deploy_tier
-from .logging import config_logging
+from .config import config_logging
 
 
 def main(cli_args: list[str]):

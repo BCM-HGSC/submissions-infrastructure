@@ -9,7 +9,7 @@ from pathlib import Path
 from sys import argv, executable
 from typing import NoReturn
 
-from .logging import config_logging
+from .config import config_logging
 
 
 def exec() -> NoReturn:

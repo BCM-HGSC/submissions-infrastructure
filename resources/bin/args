@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+
+"""Tool to output diagnostics of arguments."""
+
+import sys
+
+width = len(str(len(sys.argv) - 1))
+format = '%%%dd: %%r' % width
+
+for index_arg in enumerate(sys.argv):
+    print(format % index_arg)

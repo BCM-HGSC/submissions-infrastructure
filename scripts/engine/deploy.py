@@ -57,7 +57,7 @@ def deploy_tier(
 def check_mamba():
     info(f"{MAMBA=}")
     if not MAMBA.is_file():
-        critical(f"mamba is missing")
+        critical("mamba is missing")
         exit(2)
 
 
@@ -76,7 +76,9 @@ def setup_tier_path(target, tier):
 
 def list_conda_environment_defs() -> list[Path]:
     worklist = sorted(DEFS_DIR.glob("universal/*.yaml"))
-    if platform == "darwin":
+    if platform == "linux":
+        worklist.append(DEFS_DIR / "linux/linux.yaml")
+    elif platform == "darwin":
         worklist.append(DEFS_DIR / "mac/mac.yaml")
     for item in worklist:
         if not item.is_file():
@@ -136,11 +138,11 @@ class MambaDeployer:
                 return 0
         if self.offline:
             options.append("--offline")
-        mamba_command = [MAMBA, "env", "create"] + options
+        mamba_command = [MAMBA, "env", "create", "-y"] + options
         mamba_command += ["-n", env_name, "-f", DEFS_DIR / env_yaml]
         if self.dry_run:
             mamba_command[:0] = ["/usr/bin/env", "echo"]
-        debug(f"{mamba_command=}")
+        info(f"{mamba_command=}")
         timestamp = dt.now().strftime("%Y%m%d-%H%M%S")
         log_path = self.log_dir / f"{timestamp}-{env_yaml.stem}.log"
         info(f"{log_path=}")

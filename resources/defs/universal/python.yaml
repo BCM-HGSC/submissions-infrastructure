@@ -8,7 +8,7 @@ dependencies:
   - black
   - boto3
   - boto3-stubs-essential
-  - cogapp
+  - cerberus
   - coloredlogs
   - cookiecutter
   - csvkit
@@ -18,23 +18,24 @@ dependencies:
   - filelock
   - flake8
   - flake8-black
+  - holidays
   - httpie
   - humanfriendly
   - hypothesis
   - jinja2
   - jupyter
   - jupyter_bokeh
-  - jupyterlab
+  - marimo
   - markdown
   - markdown2
   - markupsafe
   - matplotlib
   - nbdime
+  - networkx
   - openpyxl
   - pandas
   - paramiko
   - pip
-  - pls
   - pre-commit
   - py
   - pycodestyle
@@ -47,20 +48,23 @@ dependencies:
   - pygments
   - pylint
   - pytest
-  - python
+  - python~=3.13
   - pyyaml
   - ranger-fm
-  - ratelimiter
+  - ratelimit
+  - rich
   - scipy
+  - supervisor
   - tenacity
   - texttable
   - textual
   - toml
+  - watchfiles
   - xlrd
   - xlwt
   - xonsh
   - yarl
   - pip:
-    - pylightxl
+    - cogapp
     - rerun
     - xkcdpass

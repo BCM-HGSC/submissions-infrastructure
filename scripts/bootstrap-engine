@@ -1,0 +1,214 @@
+#!/bin/bash
+
+# Bootstrap or rotate the infrastructure maintenance engine
+# Creates a fresh conda environment containing deployment tools
+
+set -euo pipefail
+
+# Default values
+OFFLINE=""
+VERBOSE=""
+YES=""
+TARGET_DIR=""
+
+main() {
+    parse_args "$@"
+
+    log_info "Starting bootstrap-engine"
+    log_debug "Arguments: TARGET_DIR=$TARGET_DIR, OFFLINE=$OFFLINE, VERBOSE=$VERBOSE, YES=$YES"
+
+    determine_project_root
+    setup_environment
+    setup_micromamba
+    select_engine_directory
+    create_engine_environment
+    update_engine_symlink
+
+    log_info "Engine bootstrap complete"
+    log_info "Engine location: $ENGINE_PATH"
+    log_info "Engine symlink: $ENGINE_HOME/engine"
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --offline)
+                OFFLINE="--offline"
+                shift
+                ;;
+            -v|--verbose)
+                VERBOSE="1"
+                shift
+                ;;
+            -y|--yes)
+                YES="-y"
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -*)
+                die "Unknown option: $1"
+                ;;
+            *)
+                if [[ -n "$TARGET_DIR" ]]; then
+                    die "Too many arguments"
+                fi
+                TARGET_DIR="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$TARGET_DIR" ]]; then
+        die "TARGET_DIR argument is required"
+    fi
+}
+
+determine_project_root() {
+    # Get the directory containing this script, then go up one level
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+    log_debug "PROJECT_ROOT=$PROJECT_ROOT"
+}
+
+setup_environment() {
+    # Set ENGINE_HOME to cache/ inside project root
+    export ENGINE_HOME="$TARGET_DIR/engine_home"
+    log_debug "ENGINE_HOME=$ENGINE_HOME"
+
+    # Set conda package cache directory
+    export CONDA_PKGS_DIRS="$TARGET_DIR/conda_package_cache"
+    log_debug "CONDA_PKGS_DIRS=$CONDA_PKGS_DIRS"
+
+    # Create necessary directories
+    mkdir -p "$ENGINE_HOME"
+    mkdir -p "$CONDA_PKGS_DIRS"
+}
+
+setup_micromamba() {
+    # Check if micromamba already exists
+    MAMBA="$ENGINE_HOME/micromamba"
+    if [[ ! -x "$MAMBA" ]]; then
+        log_info "Setting up micromamba..."
+        "$SCRIPT_DIR/fetch-micromamba" "$ENGINE_HOME"
+        if [[ ! -x "$MAMBA" ]]; then
+            die "Failed to setup micromamba at $MAMBA"
+        fi
+    fi
+    log_debug "MAMBA=$MAMBA"
+}
+
+select_engine_directory() {
+    local engine_a="$ENGINE_HOME/engine_a"
+    local engine_b="$ENGINE_HOME/engine_b"
+
+    # Simple blue/green rotation: if engine_a exists and is linked, use engine_b, otherwise use engine_a
+    local current_link="$ENGINE_HOME/engine"
+    if [[ -L "$current_link" ]]; then
+        local current_target
+        current_target="$(readlink "$current_link")"
+        if [[ "$current_target" == "engine_a" ]]; then
+            ENGINE_PATH="$engine_b"
+        else
+            ENGINE_PATH="$engine_a"
+        fi
+    else
+        ENGINE_PATH="$engine_a"
+    fi
+
+    log_debug "Selected engine directory: $ENGINE_PATH"
+}
+
+create_engine_environment() {
+    local engine_yaml="$PROJECT_ROOT/resources/defs/special/engine.yaml"
+
+    if [[ ! -f "$engine_yaml" ]]; then
+        die "Engine definition not found: $engine_yaml"
+    fi
+
+    # Remove existing engine directory if it exists
+    if [[ -d "$ENGINE_PATH" ]]; then
+        log_info "Removing existing engine directory: $ENGINE_PATH"
+        rm -rf "$ENGINE_PATH"
+    fi
+
+    # Build mamba command
+    local mamba_cmd=("$MAMBA" "env" "create" "-p" "$ENGINE_PATH" "-f" "$engine_yaml")
+    if [[ -n "$OFFLINE" ]]; then
+        mamba_cmd+=("$OFFLINE")
+    fi
+    if [[ -n "$YES" ]]; then
+        mamba_cmd+=("$YES")
+    fi
+
+    log_info "Creating engine environment..."
+    log_debug "Command: ${mamba_cmd[*]}"
+
+    # Run command in sanitized environment
+    "$SCRIPT_DIR/sanitize-command" \
+        CONDA_PKGS_DIRS="$CONDA_PKGS_DIRS" \
+        "${mamba_cmd[@]}"
+}
+
+update_engine_symlink() {
+    local engine_link="$ENGINE_HOME/engine"
+    local engine_name
+    engine_name="$(basename "$ENGINE_PATH")"
+
+    # Remove existing symlink if present
+    if [[ -L "$engine_link" ]]; then
+        log_debug "Removing existing engine symlink"
+        rm "$engine_link"
+    elif [[ -e "$engine_link" ]]; then
+        die "Engine path exists but is not a symlink: $engine_link"
+    fi
+
+    # Create new symlink
+    log_info "Creating engine symlink: $engine_link -> $engine_name"
+    cd "$ENGINE_HOME"
+    ln -s "$engine_name" engine
+}
+
+usage() {
+    cat << EOF
+Usage: $(basename "${BASH_SOURCE[0]}") [OPTIONS] TARGET_DIR
+
+Bootstrap or rotate the infrastructure maintenance engine.
+
+Arguments:
+    TARGET_DIR    Parent directory of engine_home
+
+Options:
+    --offline      Run conda create with --offline option
+    -v, --verbose  Enable verbose logging
+    -y, --yes      Pass -y flag to mamba command (assume yes for prompts)
+    -h, --help     Show this help message
+
+Environment variables set automatically:
+    ENGINE_HOME           Set to cache/ inside project root
+    CONDA_PKGS_DIRS Set to TARGET_DIR/conda_package_cache
+EOF
+}
+
+die() {
+    log_error "$1"
+    exit "${2:-1}"
+}
+
+log_info() {
+    echo "INFO: $*" >&2
+}
+
+log_debug() {
+    if [[ -n "$VERBOSE" ]]; then
+        echo "DEBUG: $*" >&2
+    fi
+}
+
+log_error() {
+    echo "ERROR: $*" >&2
+}
+
+main "$@"

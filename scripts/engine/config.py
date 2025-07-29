@@ -7,7 +7,7 @@ try:
 
     ROOT_HANDLER = RichHandler(show_time=False)
     ROOT_FORMAT = "%(message)s"
-except:
+except Exception:
     ROOT_HANDLER = StreamHandler()
     ROOT_FORMAT = "%(levelname)s: %(message)s"
 

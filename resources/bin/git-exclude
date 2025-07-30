@@ -1,0 +1,13 @@
+#!/bin/bash
+
+git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ $? -ne 0 ]; then
+    echo "Error: Not in a git repository" >&2
+    exit 1
+fi
+
+exclude_file="$git_root/.git/info/exclude"
+
+for arg in "$@"; do
+    echo "$arg" >> "$exclude_file"
+done

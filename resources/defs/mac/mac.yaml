@@ -1,6 +1,7 @@
 channels:
   - conda-forge
 dependencies:
+  - bash
   - coreutils
   - diffutils
   - dos2unix

@@ -100,6 +100,19 @@ setup_micromamba() {
     log_debug "MAMBA=$MAMBA"
 }
 
+# Pure function for determining next engine based on current target
+# This would normally be extracted to a separate file, but bash doesn't have
+# a good module system, so we document it as a pure function here.
+determine_next_engine() {
+    local current_target="$1"
+    # Simple blue/green rotation: if engine_a is current, use engine_b, otherwise use engine_a
+    if [[ "$current_target" == "engine_a" ]]; then
+        echo "engine_b"
+    else
+        echo "engine_a"
+    fi
+}
+
 select_engine_directory() {
     local engine_a="$ENGINE_HOME/engine_a"
     local engine_b="$ENGINE_HOME/engine_b"
@@ -109,7 +122,9 @@ select_engine_directory() {
     if [[ -L "$current_link" ]]; then
         local current_target
         current_target="$(readlink "$current_link")"
-        if [[ "$current_target" == "engine_a" ]]; then
+        local next_engine
+        next_engine="$(determine_next_engine "$current_target")"
+        if [[ "$next_engine" == "engine_b" ]]; then
             ENGINE_PATH="$engine_b"
         else
             ENGINE_PATH="$engine_a"

@@ -1,6 +1,7 @@
 """Shared pytest fixtures for submissions-infrastructure tests."""
 
 from pathlib import Path
+from subprocess import CompletedProcess
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -39,8 +40,6 @@ def mock_mamba(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     Returns:
         MagicMock object that can be used to verify mamba command calls.
     """
-    from subprocess import CompletedProcess
-
     mock = MagicMock()
     # Default successful return
     mock.return_value = CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b"")

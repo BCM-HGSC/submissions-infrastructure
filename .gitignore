@@ -1,3 +1,11 @@
 build
 __pycache__
 .conda
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+.hypothesis/

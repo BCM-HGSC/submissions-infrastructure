@@ -7,11 +7,12 @@ from datetime import datetime as dt
 from logging import critical, debug, error, info, warning
 from pathlib import Path
 from re import match
-from shutil import copytree, rmtree
 from subprocess import DEVNULL, PIPE, STDOUT, run
 import sys
 
 from rich.console import Console
+
+from .filesystem import FileSystemProtocol, RealFileSystem
 
 MAMBA = Path(sys.executable).with_name("mamba")  # mamba in same bin/ as python3
 CODE_ROOT_DIR = Path(__file__).parent.parent.parent
@@ -28,20 +29,28 @@ def deploy_tier(
     offline: bool,
     mode: str | None = None,
     run_function=run,
+    filesystem: FileSystemProtocol | None = None,
 ) -> None:
-    check_mamba()
-    prod_path = setup_tier_path(target, "production")
-    tier_path = setup_tier_path(target, tier)
+    if filesystem is None:
+        filesystem = RealFileSystem()
+
+    check_mamba(filesystem)
+    prod_path = setup_tier_path(target, "production", filesystem)
+    tier_path = setup_tier_path(target, tier, filesystem)
     if tier_path == prod_path:
         critical(f"attempt to modify {prod_path=}")
         sys.exit(4)
     keep = mode == "keep"
-    if tier_path.exists() and not keep and (
-        match(r"^(dev.*|test.*|staging)$", tier) or mode == "force"
+    if (
+        filesystem.exists(tier_path)
+        and not keep
+        and (match(r"^(dev.*|test.*|staging)$", tier) or mode == "force")
     ):
-        rmtree(tier_path)
-        tier_path.mkdir()
-    deployer = MambaDeployer(target, tier_path, dry_run, offline, keep, run_function)
+        filesystem.rmtree(tier_path)
+        filesystem.mkdir(tier_path)
+    deployer = MambaDeployer(
+        target, tier_path, dry_run, offline, keep, run_function, filesystem
+    )
     if deployer.keep:
         deployer.info()
     worklist = list_conda_environment_defs()
@@ -53,23 +62,23 @@ def deploy_tier(
     deployer.store_git_info()
 
 
-def check_mamba():
+def check_mamba(filesystem: FileSystemProtocol):
     info(f"{MAMBA=}")
-    if not MAMBA.is_file():
+    if not filesystem.is_file(MAMBA):
         critical("mamba is missing")
         sys.exit(2)
 
 
-def setup_tier_path(target, tier):
+def setup_tier_path(target, tier, filesystem: FileSystemProtocol):
     info(f"{target=}")
     info(f"{tier=}")
-    if not target.is_dir():
+    if not filesystem.is_dir(target):
         critical("target is not a directory")
         sys.exit(3)
     tier_path = (target / "infrastructure" / tier).resolve()
     info(f"{tier_path=}")
-    if not tier_path.is_dir():
-        tier_path.mkdir(parents=True, exist_ok=True)
+    if not filesystem.is_dir(tier_path):
+        filesystem.mkdir(tier_path, parents=True, exist_ok=True)
     return tier_path
 
 
@@ -93,11 +102,13 @@ class MambaDeployer:
         offline: bool,
         keep: bool = False,
         run_function=run,
+        filesystem: FileSystemProtocol | None = None,
     ):
         self.dry_run = dry_run
         self.offline = offline
         self.keep = keep
         self.run_function = run_function
+        self.filesystem = filesystem if filesystem is not None else RealFileSystem()
         self.envs_dir = tier_path / "conda/envs"
         self.bin_dir = tier_path / "bin"
         self.etc_dir = tier_path / "etc"
@@ -110,7 +121,7 @@ class MambaDeployer:
         }
         info(f"{self.env=}")
         self.log_dir = tier_path / "logs"
-        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self.filesystem.mkdir(self.log_dir, parents=True, exist_ok=True)
         self.console = Console()
         debug(f"vars(deployer)={vars(self)}")
 
@@ -129,7 +140,7 @@ class MambaDeployer:
         options = []
         if self.keep:
             env_dir = self.envs_dir / env_name
-            if env_dir.is_dir():
+            if self.filesystem.is_dir(env_dir):
                 info(f"using existing environment: {env_dir!s}")
                 return 0
         if self.offline:
@@ -158,13 +169,13 @@ class MambaDeployer:
         self.copy_resource_dir(ETC_SOURCE_DIR, self.etc_dir)
 
     def copy_resource_dir(self, src_dir, dst_dir):
-        if dst_dir.exists():
+        if self.filesystem.exists(dst_dir):
             if self.keep:
                 warning(f"destination dir already exists: {dst_dir}")
             info(f"clearing {dst_dir}")
-            rmtree(dst_dir)
+            self.filesystem.rmtree(dst_dir)
         info(f"copying {src_dir} to {dst_dir}")
-        copytree(
+        self.filesystem.copytree(
             src=src_dir,
             dst=dst_dir,
             symlinks=True,
@@ -172,7 +183,7 @@ class MambaDeployer:
         )
 
     def store_git_info(self) -> None:
-        self.meta_dir.mkdir(exist_ok=True)
+        self.filesystem.mkdir(self.meta_dir, exist_ok=True)
         self.write_meta("commit", ["rev-parse", "HEAD"], True)
         self.write_meta("tree_hash", ["rev-parse", "HEAD:"], True)
         (

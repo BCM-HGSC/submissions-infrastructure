@@ -8,8 +8,10 @@ from os import environ
 from pathlib import Path
 import sys
 
+from .command_runner import RealCommandRunner
 from .config import config_logging
 from .deploy import deploy_tier
+from .filesystem import RealFileSystem
 
 
 def main(cli_args: list[str]):
@@ -20,7 +22,20 @@ def main(cli_args: list[str]):
     debug(f"{cli_args=}")
     args = parse_command_line()
     info(f"{args=}")
-    deploy_tier(args.target, args.tier, args.dry_run, args.offline, args.mode)
+
+    # Create real implementations for production use
+    filesystem = RealFileSystem()
+    command_runner = RealCommandRunner()
+
+    deploy_tier(
+        args.target,
+        args.tier,
+        args.dry_run,
+        args.offline,
+        args.mode,
+        filesystem=filesystem,
+        command_runner=command_runner,
+    )
 
 
 def parse_command_line():

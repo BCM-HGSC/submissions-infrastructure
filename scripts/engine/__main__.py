@@ -9,8 +9,8 @@ from os.path import isdir
 from pathlib import Path
 from sys import argv, executable
 
-from .deploy import deploy_tier
 from .config import config_logging
+from .deploy import deploy_tier
 
 
 def main(cli_args: list[str]):
@@ -54,8 +54,7 @@ def parse_command_line(cli_args):
 def dir_path(string):
     if isdir(string):
         return Path(string)
-    else:
-        raise NotADirectoryError(string)
+    raise NotADirectoryError(string)
 
 
 if __name__ == "__main__":

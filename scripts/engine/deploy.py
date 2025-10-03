@@ -10,10 +10,8 @@ from re import match
 from shutil import copytree, rmtree
 from subprocess import DEVNULL, PIPE, STDOUT, run
 from sys import executable, platform
-from typing import Optional
 
 from rich.console import Console
-
 
 MAMBA = Path(executable).with_name("mamba")  # mamba in same bin/ as python3
 CODE_ROOT_DIR = Path(__file__).parent.parent.parent
@@ -28,7 +26,7 @@ def deploy_tier(
     tier: str,
     dry_run: bool,
     offline: bool,
-    mode: Optional[str] = None,
+    mode: str | None = None,
     run_function=run,
 ) -> None:
     check_mamba()

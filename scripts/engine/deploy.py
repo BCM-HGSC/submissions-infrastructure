@@ -7,11 +7,12 @@ from datetime import datetime as dt
 from logging import critical, debug, error, info, warning
 from pathlib import Path
 from re import match
-from subprocess import DEVNULL, PIPE, STDOUT, run
+from subprocess import DEVNULL, PIPE, STDOUT
 import sys
 
 from rich.console import Console
 
+from .command_runner import CommandRunnerProtocol, RealCommandRunner
 from .filesystem import FileSystemProtocol, RealFileSystem
 
 MAMBA = Path(sys.executable).with_name("mamba")  # mamba in same bin/ as python3
@@ -28,11 +29,14 @@ def deploy_tier(
     dry_run: bool,
     offline: bool,
     mode: str | None = None,
-    run_function=run,
+    run_function=None,  # Deprecated, use command_runner  # noqa: ARG001
     filesystem: FileSystemProtocol | None = None,
+    command_runner: CommandRunnerProtocol | None = None,
 ) -> None:
     if filesystem is None:
         filesystem = RealFileSystem()
+    if command_runner is None:
+        command_runner = RealCommandRunner()
 
     check_mamba(filesystem)
     prod_path = setup_tier_path(target, "production", filesystem)
@@ -49,7 +53,7 @@ def deploy_tier(
         filesystem.rmtree(tier_path)
         filesystem.mkdir(tier_path)
     deployer = MambaDeployer(
-        target, tier_path, dry_run, offline, keep, run_function, filesystem
+        target, tier_path, dry_run, offline, keep, command_runner, filesystem
     )
     if deployer.keep:
         deployer.info()
@@ -101,13 +105,15 @@ class MambaDeployer:
         dry_run: bool,
         offline: bool,
         keep: bool = False,
-        run_function=run,
+        command_runner: CommandRunnerProtocol | None = None,
         filesystem: FileSystemProtocol | None = None,
     ):
         self.dry_run = dry_run
         self.offline = offline
         self.keep = keep
-        self.run_function = run_function
+        self.command_runner = (
+            command_runner if command_runner is not None else RealCommandRunner()
+        )
         self.filesystem = filesystem if filesystem is not None else RealFileSystem()
         self.envs_dir = tier_path / "conda/envs"
         self.bin_dir = tier_path / "bin"
@@ -126,7 +132,7 @@ class MambaDeployer:
         debug(f"vars(deployer)={vars(self)}")
 
     def info(self):
-        self.run_function([MAMBA, "info"], env=self.env)
+        self.command_runner.run([MAMBA, "info"], env=self.env)
 
     def deploy_conda_environments(self, worklist):
         for env_yaml in worklist:
@@ -157,7 +163,7 @@ class MambaDeployer:
             log_path.open("wb") as fout,
             self.console.status(f"Installing {env_yaml}..."),
         ):
-            result = self.run_function(
+            result = self.command_runner.run(
                 mamba_command, env=self.env, stderr=STDOUT, stdout=fout
             )
         return result.returncode
@@ -193,10 +199,10 @@ class MambaDeployer:
         )
 
     def write_meta(self, dest_name, subcommand, expect_fail=True) -> bool:
-        command_prefix = ["git", "-C", CODE_ROOT_DIR]
+        command_prefix = ["git", "-C", str(CODE_ROOT_DIR)]
         command = command_prefix + subcommand
         stderr = DEVNULL if expect_fail else None
-        result = self.run_function(command, stdout=PIPE, stderr=stderr)
+        result = self.command_runner.run(command, stdout=PIPE, stderr=stderr)
         dest_path = self.meta_dir / dest_name
         dest_path.write_bytes(result.stdout or b"ERROR\n")
         return result.returncode == 0

@@ -73,13 +73,42 @@ def check_mamba(filesystem: FileSystemProtocol):
         sys.exit(2)
 
 
+def validate_tier_path(target: Path, tier: str) -> Path:
+    """
+    Pure function to compute and validate tier path.
+
+    Args:
+        target: Target directory path
+        tier: Tier name (e.g., "staging", "production", "blue", "green")
+
+    Returns:
+        Resolved tier path
+
+    Note:
+        This is a pure function that only computes the path.
+        It does not perform I/O or create directories.
+    """
+    return (target / "infrastructure" / tier).resolve()
+
+
 def setup_tier_path(target, tier, filesystem: FileSystemProtocol):
+    """
+    Setup tier path with validation and directory creation.
+
+    Args:
+        target: Target directory path
+        tier: Tier name
+        filesystem: Filesystem abstraction for I/O operations
+
+    Returns:
+        Resolved tier path
+    """
     info(f"{target=}")
     info(f"{tier=}")
     if not filesystem.is_dir(target):
         critical("target is not a directory")
         sys.exit(3)
-    tier_path = (target / "infrastructure" / tier).resolve()
+    tier_path = validate_tier_path(target, tier)
     info(f"{tier_path=}")
     if not filesystem.is_dir(tier_path):
         filesystem.mkdir(tier_path, parents=True, exist_ok=True)

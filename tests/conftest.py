@@ -1,7 +1,7 @@
 """Shared pytest fixtures for submissions-infrastructure tests."""
 
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest

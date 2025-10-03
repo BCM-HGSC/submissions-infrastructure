@@ -11,6 +11,7 @@ import pytest
 # Add scripts directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
+from engine.command_runner import MockCommandRunner
 from engine.filesystem import MockFileSystem
 
 
@@ -65,6 +66,17 @@ def mock_filesystem() -> MockFileSystem:
         MockFileSystem instance for testing filesystem operations.
     """
     return MockFileSystem()
+
+
+@pytest.fixture
+def mock_command_runner() -> MockCommandRunner:
+    """
+    Create a mock command runner for testing.
+
+    Returns:
+        MockCommandRunner instance for testing command execution.
+    """
+    return MockCommandRunner()
 
 
 @pytest.fixture

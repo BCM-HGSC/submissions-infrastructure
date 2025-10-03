@@ -43,9 +43,7 @@ def mock_mamba(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 
     mock = MagicMock()
     # Default successful return
-    mock.return_value = CompletedProcess(
-        args=[], returncode=0, stdout=b"", stderr=b""
-    )
+    mock.return_value = CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b"")
 
     # Mock subprocess.run to use our mock
     monkeypatch.setattr("subprocess.run", mock)
@@ -76,7 +74,8 @@ dependencies:
 def pytest_configure(config: Any) -> None:
     """Configure custom pytest markers."""
     config.addinivalue_line(
-        "markers", "integration: mark test as integration test (requires --run-integration)"
+        "markers",
+        "integration: mark test as integration test (requires --run-integration)",
     )
 
 

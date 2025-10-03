@@ -9,3 +9,6 @@ htmlcov/
 .tox/
 *.cover
 .hypothesis/
+
+# Ruff cache
+.ruff_cache/

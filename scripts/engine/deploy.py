@@ -9,11 +9,11 @@ from pathlib import Path
 from re import match
 from shutil import copytree, rmtree
 from subprocess import DEVNULL, PIPE, STDOUT, run
-from sys import executable, platform
+import sys
 
 from rich.console import Console
 
-MAMBA = Path(executable).with_name("mamba")  # mamba in same bin/ as python3
+MAMBA = Path(sys.executable).with_name("mamba")  # mamba in same bin/ as python3
 CODE_ROOT_DIR = Path(__file__).parent.parent.parent
 RESOURCES_DIR = CODE_ROOT_DIR / "resources"
 DEFS_DIR = RESOURCES_DIR / "defs"
@@ -34,12 +34,13 @@ def deploy_tier(
     tier_path = setup_tier_path(target, tier)
     if tier_path == prod_path:
         critical(f"attempt to modify {prod_path=}")
-        exit(4)
+        sys.exit(4)
     keep = mode == "keep"
-    if tier_path.exists() and not keep:
-        if match(r"^(dev.*|test.*|staging)$", tier) or mode == "force":
-            rmtree(tier_path)
-            tier_path.mkdir()
+    if tier_path.exists() and not keep and (
+        match(r"^(dev.*|test.*|staging)$", tier) or mode == "force"
+    ):
+        rmtree(tier_path)
+        tier_path.mkdir()
     deployer = MambaDeployer(target, tier_path, dry_run, offline, keep, run_function)
     if deployer.keep:
         deployer.info()
@@ -56,7 +57,7 @@ def check_mamba():
     info(f"{MAMBA=}")
     if not MAMBA.is_file():
         critical("mamba is missing")
-        exit(2)
+        sys.exit(2)
 
 
 def setup_tier_path(target, tier):
@@ -64,7 +65,7 @@ def setup_tier_path(target, tier):
     info(f"{tier=}")
     if not target.is_dir():
         critical("target is not a directory")
-        exit(3)
+        sys.exit(3)
     tier_path = (target / "infrastructure" / tier).resolve()
     info(f"{tier_path=}")
     if not tier_path.is_dir():
@@ -74,14 +75,11 @@ def setup_tier_path(target, tier):
 
 def list_conda_environment_defs() -> list[Path]:
     worklist = sorted(DEFS_DIR.glob("universal/*.yaml"))
-    if platform == "linux":
+    if sys.platform == "linux":
         worklist.append(DEFS_DIR / "linux/linux.yaml")
-    elif platform == "darwin":
+    elif sys.platform == "darwin":
         worklist.append(DEFS_DIR / "mac/mac.yaml")
-    for item in worklist:
-        if not item.is_file():
-            error(f"not a file: {item}")
-            worklist.remove(item)
+    worklist = [item for item in worklist if item.is_file()]
     debug(f"{worklist=}")
     return worklist
 
@@ -104,12 +102,12 @@ class MambaDeployer:
         self.bin_dir = tier_path / "bin"
         self.etc_dir = tier_path / "etc"
         self.meta_dir = tier_path / "meta"
-        self.env = dict(
-            HOME=target / "engine_home",
-            CONDA_ENVS_DIRS=self.envs_dir,
-            CONDA_PKGS_DIRS=target / "conda_package_cache",
-            CONDA_CHANNELS="conda-forge",
-        )
+        self.env = {
+            "HOME": str(target / "engine_home"),
+            "CONDA_ENVS_DIRS": str(self.envs_dir),
+            "CONDA_PKGS_DIRS": str(target / "conda_package_cache"),
+            "CONDA_CHANNELS": "conda-forge",
+        }
         info(f"{self.env=}")
         self.log_dir = tier_path / "logs"
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -136,7 +134,7 @@ class MambaDeployer:
                 return 0
         if self.offline:
             options.append("--offline")
-        mamba_command = [MAMBA, "env", "create", "-y"] + options
+        mamba_command = [MAMBA, "env", "create", "-y", *options]
         mamba_command += ["-n", env_name, "-f", DEFS_DIR / env_yaml]
         if self.dry_run:
             mamba_command[:0] = ["/usr/bin/env", "echo"]
@@ -144,11 +142,13 @@ class MambaDeployer:
         timestamp = dt.now().strftime("%Y%m%d-%H%M%S")
         log_path = self.log_dir / f"{timestamp}-{env_yaml.stem}.log"
         info(f"{log_path=}")
-        with log_path.open("wb") as fout:
-            with self.console.status(f"Installing {env_yaml}..."):
-                result = self.run_function(
-                    mamba_command, env=self.env, stderr=STDOUT, stdout=fout
-                )
+        with (
+            log_path.open("wb") as fout,
+            self.console.status(f"Installing {env_yaml}..."),
+        ):
+            result = self.run_function(
+                mamba_command, env=self.env, stderr=STDOUT, stdout=fout
+            )
         return result.returncode
 
     def deploy_bin(self):

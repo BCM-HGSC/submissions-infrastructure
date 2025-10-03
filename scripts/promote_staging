@@ -19,11 +19,39 @@ from pathlib import Path
 from sys import exit
 from typing import NoReturn
 
-
 BLUE_GREEN_TRANSITIONS = {
     "blue": "green",
     "green": "blue",
 }
+
+
+def validate_color(color: str) -> bool:
+    """
+    Pure function to check if a color is valid (blue or green).
+
+    Args:
+        color: Color string to validate
+
+    Returns:
+        True if color is 'blue' or 'green', False otherwise
+    """
+    return color in BLUE_GREEN_TRANSITIONS
+
+
+def get_opposite_color(color: str) -> str:
+    """
+    Pure function to get the opposite blue/green color.
+
+    Args:
+        color: Current color ('blue' or 'green')
+
+    Returns:
+        Opposite color
+
+    Raises:
+        KeyError: If color is not 'blue' or 'green'
+    """
+    return BLUE_GREEN_TRANSITIONS[color]
 
 
 def main():
@@ -40,7 +68,7 @@ def main():
         if production_color == staging_color:
             die(f"staging and production symlinks have the same color: {staging_color}")
         production_path.unlink()
-    new_staging_color = BLUE_GREEN_TRANSITIONS[staging_color]
+    new_staging_color = get_opposite_color(staging_color)
     production_path.symlink_to(staging_color)
     staging_path.unlink()
     staging_path.symlink_to(new_staging_color)
@@ -49,7 +77,7 @@ def main():
 def validate_and_get_color(tier_path: Path) -> str:
     """
     Return the color (blue or green) of the input tier path symlink.
-    Die of the tier path is not a symlink or does not point to the blue or green
+    Die if the tier path is not a symlink or does not point to the blue or green
     directories.
     """
     if not tier_path.is_symlink():
@@ -57,8 +85,8 @@ def validate_and_get_color(tier_path: Path) -> str:
     if not tier_path.is_dir():
         die(f"Symlink does not point to a directory: {tier_path}")
     color = tier_path.readlink().name
-    if color not in BLUE_GREEN_TRANSITIONS:
-        die(f"Target of {tier_path} is niether 'blue' nor 'green': {color}")
+    if not validate_color(color):
+        die(f"Target of {tier_path} is neither 'blue' nor 'green': {color}")
     return color
 
 

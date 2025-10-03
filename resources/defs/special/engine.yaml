@@ -5,5 +5,9 @@ dependencies:
   - mamba
   - pip
   - python~=3.13
+  - pytest
+  - pytest-cov
+  - pytest-mock
+  - pytest-timeout
   - rich
   - pyyaml

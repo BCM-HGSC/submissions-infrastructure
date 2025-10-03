@@ -2,10 +2,16 @@
 
 from pathlib import Path
 from subprocess import CompletedProcess
+import sys
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+
+# Add scripts directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+from engine.filesystem import MockFileSystem
 
 
 @pytest.fixture
@@ -48,6 +54,17 @@ def mock_mamba(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     monkeypatch.setattr("subprocess.run", mock)
 
     return mock
+
+
+@pytest.fixture
+def mock_filesystem() -> MockFileSystem:
+    """
+    Create a mock filesystem for testing.
+
+    Returns:
+        MockFileSystem instance for testing filesystem operations.
+    """
+    return MockFileSystem()
 
 
 @pytest.fixture

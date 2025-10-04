@@ -69,6 +69,14 @@ Environment definitions stored in `resources/defs/`:
 3. Engine deploys infrastructure tiers using YAML definitions
 4. Blue/green rotation allows safe updates
 
+### Code Architecture
+
+**Testability Design**:
+- `scripts/engine/filesystem.py`: Filesystem abstraction with Protocol, real implementation, and mock
+- `scripts/engine/command_runner.py`: Command execution abstraction for mocking subprocess calls
+- Dependency injection in `deploy_tier()` and `MambaDeployer` for testing
+- Pure functions separated from side effects (e.g., `validate_tier_path()`, `validate_color()`)
+
 ## Development Workflow
 
 ### Testing Changes
@@ -86,3 +94,63 @@ Environment definitions stored in `resources/defs/`:
 - Use `--verbose` flag for detailed logging
 - Check engine logs in deployment process
 - Validate YAML definitions before deployment
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all unit tests
+pytest tests/unit/
+
+# Run specific test file
+pytest tests/unit/test_deploy_args.py -v
+
+# Run integration tests (requires --run-integration flag)
+pytest tests/integration/ --run-integration
+
+# Run with coverage
+pytest --cov=scripts/engine --cov-report=html
+```
+
+### Test Organization
+
+**Unit Tests** (`tests/unit/`):
+- Fast, isolated tests using mocks
+- No external dependencies or network calls
+- Test individual functions and error conditions
+- 98 tests covering argument parsing, path validation, blue/green logic, error handling, and environment definitions
+
+**Integration Tests** (`tests/integration/`):
+- Test complete workflows with actual script execution
+- Marked with `@pytest.mark.integration`
+- Require `--run-integration` flag to execute
+- May require network access or take longer to run
+
+### Test Fixtures
+
+Key fixtures in `tests/conftest.py`:
+- `tmp_target_dir`: Creates temporary deployment directory structure
+- `mock_filesystem`: MockFileSystem for testing file operations
+- `mock_command_runner`: MockCommandRunner for testing subprocess calls
+- `sample_env_yaml`: Sample environment definition for testing
+
+### Code Quality
+
+**Linting and Formatting**:
+```bash
+# Run ruff linter
+ruff check .
+
+# Auto-fix issues
+ruff check --fix .
+
+# Format code
+ruff format .
+```
+
+**Pre-commit Hooks**:
+- Automatically run ruff check and format on commit
+- Validate YAML syntax
+- Check for trailing whitespace and EOF newlines
+- Install hooks: `pre-commit install`

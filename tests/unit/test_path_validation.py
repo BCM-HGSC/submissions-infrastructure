@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from scripts.engine.deploy import setup_tier_path, validate_tier_path
+from scripts.engine.deploy import (
+    MAMBA,
+    deploy_tier,
+    setup_tier_path,
+    validate_tier_path,
+)
 from scripts.engine.filesystem import MockFileSystem
 
 
@@ -137,8 +142,6 @@ def test_production_tier_protection(tmp_path):
     This test verifies the protection logic in deploy_tier() that prevents
     direct modification of production tier.
     """
-    from scripts.engine.deploy import MAMBA, deploy_tier
-
     filesystem = MockFileSystem()
     filesystem.directories.add(tmp_path)
 

@@ -28,6 +28,16 @@ scripts/deploy /path/to/target staging --dry-run --force
 # the tier is usually staging
 ```
 
+### Promote Staging to Production
+```bash
+# Switch production and staging symlinks (requires IAC_TIER_DIR in environment)
+scripts/promote_staging
+
+# This swaps which tier is production and which is staging
+# Example: if production -> blue and staging -> green, after promotion:
+#          production -> green and staging -> blue
+```
+
 ### AWS Tools Installation
 ```bash
 # Install AWS CLI and tools
@@ -68,6 +78,22 @@ Environment definitions stored in `resources/defs/`:
 2. Engine environment installed via micromamba
 3. Engine deploys infrastructure tiers using YAML definitions
 4. Blue/green rotation allows safe updates
+
+### Environment Variables
+
+When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment variables are initialized:
+
+- **IAC_TIER_DIR**: Absolute path to the active tier directory (e.g., `/path/to/target/infrastructure/blue`)
+- **IAC_TIER_NAME**: Name of the tier symlink being used (e.g., `production`, `staging`)
+- **IAC_DIR**: Path to the infrastructure directory (e.g., `/path/to/target/infrastructure`)
+- **IAC_PARENT**: Path to the TARGET_DIR (e.g., `/path/to/target`)
+- **IAC_ORIGINAL_PATH**: Original PATH before modifications by the infrastructure
+- **CONDARC**: Path to the tier's conda configuration file (e.g., `$IAC_TIER_DIR/etc/condarc`)
+
+**Usage**:
+- Interactive users can view these variables with the `iac_dump_vars` shell function
+- The `scripts/promote_staging` script requires `IAC_TIER_DIR` to be set in the environment (this indicates which tier is currently active and needs promotion)
+- Users switch between tiers using `iac_load <tier_name>` (e.g., `iac_load staging`)
 
 ### Code Architecture
 

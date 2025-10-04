@@ -1,14 +1,22 @@
 """Unit tests for promote_staging script."""
 
 from importlib.machinery import SourceFileLoader
+import importlib.util
 from pathlib import Path
+import sys
 
 import pytest
 
 # Load the promote_staging script as a module
 # (It doesn't have a .py extension, so we need to load it manually)
 _script_path = str(Path(__file__).parent.parent.parent / "scripts" / "promote_staging")
-_promote_staging = SourceFileLoader("promote_staging", _script_path).load_module()
+_loader = SourceFileLoader("promote_staging", _script_path)
+_spec = importlib.util.spec_from_file_location(
+    "promote_staging", _script_path, loader=_loader
+)
+_promote_staging = importlib.util.module_from_spec(_spec)
+sys.modules["promote_staging"] = _promote_staging
+_spec.loader.exec_module(_promote_staging)
 
 # Import the functions we need
 BLUE_GREEN_TRANSITIONS = _promote_staging.BLUE_GREEN_TRANSITIONS

@@ -36,17 +36,22 @@ OFFLINE=""
 FORCE=""
 VERBOSE=""
 YES=""
+DRY_RUN=""
 TARGET_DIR=""
 
 main() {
     parse_args "$@"
 
     log_info "Starting bootstrap infrastructure"
-    log_debug "Arguments: TARGET_DIR=$TARGET_DIR, OFFLINE=$OFFLINE, VERBOSE=$VERBOSE, YES=$YES"
+    log_debug "Arguments: TARGET_DIR=$TARGET_DIR, OFFLINE=$OFFLINE, VERBOSE=$VERBOSE, YES=$YES, DRY_RUN=$DRY_RUN"
 
     determine_locations
 
-    "$SCRIPT_DIR"/bootstrap-engine "$TARGET_DIR" $OFFLINE $VERBOSE -y
+    if [[ -n "$DRY_RUN" ]]; then
+        log_info "[DRY RUN] Would run: $SCRIPT_DIR/bootstrap-engine $TARGET_DIR $OFFLINE $VERBOSE -y --dry-run"
+    else
+        "$SCRIPT_DIR"/bootstrap-engine "$TARGET_DIR" $OFFLINE $VERBOSE -y
+    fi
 
     setup_target
 }
@@ -64,6 +69,10 @@ parse_args() {
                 ;;
             -v|--verbose)
                 VERBOSE="--verbose"
+                shift
+                ;;
+            -n|--dry-run)
+                DRY_RUN="y"
                 shift
                 ;;
             -h|--help)
@@ -95,27 +104,43 @@ determine_locations() {
 }
 
 setup_target() {
-    cd "$TARGET_DIR"
-    if [[ -e infrastructure ]]; then
+    if [[ -n "$DRY_RUN" ]]; then
+        log_info "[DRY RUN] Would change to directory: $TARGET_DIR"
+    else
+        cd "$TARGET_DIR"
+    fi
+
+    if [[ -e "$TARGET_DIR/infrastructure" ]]; then
         if [[ -z $FORCE ]]; then
             die "$TARGET_DIR/infrastructure already exists"
         else
-            warning "Erasing $TARGET_DIR/infrastructure"
-            rm -rf "$TARGET_DIR/infrastructure"
+            log_info "Erasing $TARGET_DIR/infrastructure"
+            if [[ -n "$DRY_RUN" ]]; then
+                log_info "[DRY RUN] Would remove: $TARGET_DIR/infrastructure"
+            else
+                rm -rf "$TARGET_DIR/infrastructure"
+            fi
         fi
     fi
-    mkdir -p conda_package_cache engine_home infrastructure
-    cd infrastructure
-    mkdir -p blue green
-    if [[ ! -e staging ]]; then
-        ln -s blue staging
-        ln -s green production
+
+    if [[ -n "$DRY_RUN" ]]; then
+        log_info "[DRY RUN] Would create directories: conda_package_cache engine_home infrastructure"
+        log_info "[DRY RUN] Would create directories: infrastructure/blue infrastructure/green"
+        log_info "[DRY RUN] Would create symlinks: staging -> blue, production -> green"
+    else
+        mkdir -p conda_package_cache engine_home infrastructure
+        cd infrastructure
+        mkdir -p blue green
+        if [[ ! -e staging ]]; then
+            ln -s blue staging
+            ln -s green production
+        fi
     fi
 }
 
 usage() {
     cat << EOF
-Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--force] TARGET_DIR
+Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--force] [--dry-run] TARGET_DIR
 
 Create TARGET_DIR if it does not already exist, and populated it with  a
 subdirectory named "conda_package_cache" and another subdirectory named
@@ -129,9 +154,17 @@ Available options:
 
 -h, --help          Print this help and exit.
 -v, --verbose       Print script debug info.
+-n, --dry-run       Show what would be done without making changes.
 --no-color          Turn off color output.
 --offline           No internet usage
 --force             Erase existing tier in current infrastructure!
+
+Exit codes:
+  0   Success
+  1   General error (usage error, missing TARGET_DIR, already exists without --force)
+  2   Missing dependency (failed to setup micromamba or other required tool)
+  3   Invalid input (invalid path, permissions error)
+  4   Operation failed (command execution failure)
 
 EOF
     exit

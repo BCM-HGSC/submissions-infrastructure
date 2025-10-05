@@ -12,8 +12,13 @@ This script will:
 - Validate and then remove any existing "production" symlink.
 - Create a new "production" symlink that points to the target of "staging".
 - Move the "staging" symlink to the opposite tier (blue vs green) from "production"
+
+Exit codes:
+  0   Success
+  1   General error (missing IAC_TIER_DIR, validation failure, same color error)
 """
 
+from argparse import ArgumentParser
 from os import environ
 from pathlib import Path
 import sys
@@ -55,6 +60,15 @@ def get_opposite_color(color: str) -> str:
 
 
 def main() -> None:
+    parser = ArgumentParser(description="Promote staging tier to production")
+    parser.add_argument(
+        "-n",
+        "--dry-run",
+        action="store_true",
+        help="Show what would be done without making changes",
+    )
+    args = parser.parse_args()
+
     if "IAC_TIER_DIR" not in environ:
         die("environment is missing IAC_TIER_DIR")
     tier_path = Path(environ["IAC_TIER_DIR"]).resolve()
@@ -63,15 +77,25 @@ def main() -> None:
     staging_path = infrastructure_path / "staging"
     staging_color = validate_and_get_color(staging_path)
     production_path = infrastructure_path / "production"
+
     if production_path.exists():
         production_color = validate_and_get_color(production_path)
         if production_color == staging_color:
             die(f"staging and production symlinks have the same color: {staging_color}")
-        production_path.unlink()
+        if args.dry_run:
+            print(f"[DRY RUN] Would remove production symlink: {production_path}")
+        else:
+            production_path.unlink()
+
     new_staging_color = get_opposite_color(staging_color)
-    production_path.symlink_to(staging_color)
-    staging_path.unlink()
-    staging_path.symlink_to(new_staging_color)
+
+    if args.dry_run:
+        print(f"[DRY RUN] Would create production -> {staging_color}")
+        print(f"[DRY RUN] Would update staging -> {new_staging_color}")
+    else:
+        production_path.symlink_to(staging_color)
+        staging_path.unlink()
+        staging_path.symlink_to(new_staging_color)
 
 
 def validate_and_get_color(tier_path: Path) -> str:

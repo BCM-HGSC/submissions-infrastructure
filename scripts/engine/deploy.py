@@ -66,7 +66,7 @@ def deploy_tier(
     deployer.store_git_info()
 
 
-def check_mamba(filesystem: FileSystemProtocol):
+def check_mamba(filesystem: FileSystemProtocol) -> None:
     info(f"{MAMBA=}")
     if not filesystem.is_file(MAMBA):
         critical("mamba is missing")
@@ -91,7 +91,7 @@ def validate_tier_path(target: Path, tier: str) -> Path:
     return (target / "infrastructure" / tier).resolve()
 
 
-def setup_tier_path(target, tier, filesystem: FileSystemProtocol):
+def setup_tier_path(target: Path, tier: str, filesystem: FileSystemProtocol) -> Path:
     """
     Setup tier path with validation and directory creation.
 
@@ -160,10 +160,10 @@ class MambaDeployer:
         self.console = Console()
         debug(f"vars(deployer)={vars(self)}")
 
-    def info(self):
+    def info(self) -> None:
         self.command_runner.run([MAMBA, "info"], env=self.env)
 
-    def deploy_conda_environments(self, worklist):
+    def deploy_conda_environments(self, worklist: list[Path]) -> None:
         for env_yaml in worklist:
             info(f"{env_yaml=}")
             returncode = self.deploy_env(env_yaml)
@@ -197,13 +197,13 @@ class MambaDeployer:
             )
         return result.returncode
 
-    def deploy_bin(self):
+    def deploy_bin(self) -> None:
         self.copy_resource_dir(BIN_SOURCE_DIR, self.bin_dir)
 
-    def deploy_etc(self):
+    def deploy_etc(self) -> None:
         self.copy_resource_dir(ETC_SOURCE_DIR, self.etc_dir)
 
-    def copy_resource_dir(self, src_dir, dst_dir):
+    def copy_resource_dir(self, src_dir: Path, dst_dir: Path) -> None:
         if self.filesystem.exists(dst_dir):
             if self.keep:
                 warning(f"destination dir already exists: {dst_dir}")
@@ -227,7 +227,9 @@ class MambaDeployer:
             or self.write_meta("description", ["describe", "--dirty", "--all"])
         )
 
-    def write_meta(self, dest_name, subcommand, expect_fail=True) -> bool:
+    def write_meta(
+        self, dest_name: str, subcommand: list[str], expect_fail: bool = True
+    ) -> bool:
         command_prefix = ["git", "-C", str(CODE_ROOT_DIR)]
         command = command_prefix + subcommand
         stderr = DEVNULL if expect_fail else None

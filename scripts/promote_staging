@@ -16,7 +16,7 @@ This script will:
 
 from os import environ
 from pathlib import Path
-from sys import exit
+import sys
 from typing import NoReturn
 
 BLUE_GREEN_TRANSITIONS = {
@@ -54,7 +54,7 @@ def get_opposite_color(color: str) -> str:
     return BLUE_GREEN_TRANSITIONS[color]
 
 
-def main():
+def main() -> None:
     if "IAC_TIER_DIR" not in environ:
         die("environment is missing IAC_TIER_DIR")
     tier_path = Path(environ["IAC_TIER_DIR"]).resolve()
@@ -90,9 +90,9 @@ def validate_and_get_color(tier_path: Path) -> str:
     return color
 
 
-def die(message) -> NoReturn:
-    print(message)
-    exit(1)
+def die(message: str) -> NoReturn:
+    print(message, file=sys.stderr)
+    sys.exit(1)
 
 
 if __name__ == "__main__":

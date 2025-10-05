@@ -2,7 +2,7 @@
 Top-level execution point for deploying infrastructure.
 """
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from logging import debug, info
 from os import environ
 from pathlib import Path
@@ -14,7 +14,7 @@ from .deploy import deploy_tier
 from .filesystem import RealFileSystem
 
 
-def main(cli_args: list[str]):
+def main(cli_args: list[str]) -> None:
     config_logging()
     info(f"running {__file__}:main")
     info(f"{environ=}")
@@ -38,7 +38,7 @@ def main(cli_args: list[str]):
     )
 
 
-def parse_command_line():
+def parse_command_line() -> Namespace:
     """
     `python3 -m engine TIER TARGET_DIR`
     """
@@ -64,7 +64,7 @@ def parse_command_line():
     return parser.parse_args()
 
 
-def dir_path(string):
+def dir_path(string: str) -> Path:
     path = Path(string)
     if path.is_dir():
         return path

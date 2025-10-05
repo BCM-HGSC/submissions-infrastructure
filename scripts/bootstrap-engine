@@ -9,6 +9,7 @@ set -euo pipefail
 OFFLINE=""
 VERBOSE=""
 YES=""
+DRY_RUN=""
 TARGET_DIR=""
 
 main() {
@@ -42,6 +43,10 @@ parse_args() {
                 ;;
             -y|--yes)
                 YES="-y"
+                shift
+                ;;
+            -n|--dry-run)
+                DRY_RUN="y"
                 shift
                 ;;
             -h|--help)
@@ -83,8 +88,12 @@ setup_environment() {
     log_debug "CONDA_PKGS_DIRS=$CONDA_PKGS_DIRS"
 
     # Create necessary directories
-    mkdir -p "$ENGINE_HOME"
-    mkdir -p "$CONDA_PKGS_DIRS"
+    if [[ -n "$DRY_RUN" ]]; then
+        log_info "[DRY RUN] Would create directories: $ENGINE_HOME, $CONDA_PKGS_DIRS"
+    else
+        mkdir -p "$ENGINE_HOME"
+        mkdir -p "$CONDA_PKGS_DIRS"
+    fi
 }
 
 setup_micromamba() {
@@ -92,9 +101,13 @@ setup_micromamba() {
     MAMBA="$ENGINE_HOME/micromamba"
     if [[ ! -x "$MAMBA" ]]; then
         log_info "Setting up micromamba..."
-        "$SCRIPT_DIR/fetch-micromamba" "$ENGINE_HOME"
-        if [[ ! -x "$MAMBA" ]]; then
-            die "Failed to setup micromamba at $MAMBA"
+        if [[ -n "$DRY_RUN" ]]; then
+            log_info "[DRY RUN] Would fetch micromamba to: $ENGINE_HOME"
+        else
+            "$SCRIPT_DIR/fetch-micromamba" "$ENGINE_HOME"
+            if [[ ! -x "$MAMBA" ]]; then
+                die "Failed to setup micromamba at $MAMBA" 2
+            fi
         fi
     fi
     log_debug "MAMBA=$MAMBA"
@@ -140,13 +153,17 @@ create_engine_environment() {
     local engine_yaml="$PROJECT_ROOT/resources/defs/special/engine.yaml"
 
     if [[ ! -f "$engine_yaml" ]]; then
-        die "Engine definition not found: $engine_yaml"
+        die "Engine definition not found: $engine_yaml" 3
     fi
 
     # Remove existing engine directory if it exists
     if [[ -d "$ENGINE_PATH" ]]; then
         log_info "Removing existing engine directory: $ENGINE_PATH"
-        rm -rf "$ENGINE_PATH"
+        if [[ -n "$DRY_RUN" ]]; then
+            log_info "[DRY RUN] Would remove: $ENGINE_PATH"
+        else
+            rm -rf "$ENGINE_PATH"
+        fi
     fi
 
     # Build mamba command
@@ -161,10 +178,14 @@ create_engine_environment() {
     log_info "Creating engine environment..."
     log_debug "Command: ${mamba_cmd[*]}"
 
-    # Run command in sanitized environment
-    "$SCRIPT_DIR/sanitize-command" \
-        CONDA_PKGS_DIRS="$CONDA_PKGS_DIRS" \
-        "${mamba_cmd[@]}"
+    if [[ -n "$DRY_RUN" ]]; then
+        log_info "[DRY RUN] Would run: ${mamba_cmd[*]}"
+    else
+        # Run command in sanitized environment
+        "$SCRIPT_DIR/sanitize-command" \
+            CONDA_PKGS_DIRS="$CONDA_PKGS_DIRS" \
+            "${mamba_cmd[@]}"
+    fi
 }
 
 update_engine_symlink() {
@@ -175,15 +196,23 @@ update_engine_symlink() {
     # Remove existing symlink if present
     if [[ -L "$engine_link" ]]; then
         log_debug "Removing existing engine symlink"
-        rm "$engine_link"
+        if [[ -n "$DRY_RUN" ]]; then
+            log_info "[DRY RUN] Would remove symlink: $engine_link"
+        else
+            rm "$engine_link"
+        fi
     elif [[ -e "$engine_link" ]]; then
-        die "Engine path exists but is not a symlink: $engine_link"
+        die "Engine path exists but is not a symlink: $engine_link" 3
     fi
 
     # Create new symlink
     log_info "Creating engine symlink: $engine_link -> $engine_name"
-    cd "$ENGINE_HOME"
-    ln -s "$engine_name" engine
+    if [[ -n "$DRY_RUN" ]]; then
+        log_info "[DRY RUN] Would create symlink: $engine_link -> $engine_name"
+    else
+        cd "$ENGINE_HOME"
+        ln -s "$engine_name" engine
+    fi
 }
 
 usage() {
@@ -199,11 +228,19 @@ Options:
     --offline      Run conda create with --offline option
     -v, --verbose  Enable verbose logging
     -y, --yes      Pass -y flag to mamba command (assume yes for prompts)
+    -n, --dry-run  Show what would be done without making changes
     -h, --help     Show this help message
 
 Environment variables set automatically:
-    ENGINE_HOME           Set to cache/ inside project root
-    CONDA_PKGS_DIRS Set to TARGET_DIR/conda_package_cache
+    ENGINE_HOME      Set to TARGET_DIR/engine_home
+    CONDA_PKGS_DIRS  Set to TARGET_DIR/conda_package_cache
+
+Exit codes:
+  0   Success
+  1   General error (usage error, missing TARGET_DIR, missing dependency)
+  2   Missing dependency (failed to setup micromamba)
+  3   Invalid input (missing engine.yaml, invalid path)
+  4   Operation failed (command execution failure)
 EOF
 }
 

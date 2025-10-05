@@ -42,7 +42,7 @@ def deploy_tier(
     prod_path = setup_tier_path(target, "production", filesystem)
     tier_path = setup_tier_path(target, tier, filesystem)
     if tier_path == prod_path:
-        critical(f"attempt to modify {prod_path=}")
+        critical(f"Cannot modify production tier: tier={tier} resolves to {tier_path}")
         sys.exit(4)
     keep = mode == "keep"
     if (
@@ -66,10 +66,10 @@ def deploy_tier(
     deployer.store_git_info()
 
 
-def check_mamba(filesystem: FileSystemProtocol):
+def check_mamba(filesystem: FileSystemProtocol) -> None:
     info(f"{MAMBA=}")
     if not filesystem.is_file(MAMBA):
-        critical("mamba is missing")
+        critical(f"Required binary not found: mamba at {MAMBA}")
         sys.exit(2)
 
 
@@ -91,7 +91,7 @@ def validate_tier_path(target: Path, tier: str) -> Path:
     return (target / "infrastructure" / tier).resolve()
 
 
-def setup_tier_path(target, tier, filesystem: FileSystemProtocol):
+def setup_tier_path(target: Path, tier: str, filesystem: FileSystemProtocol) -> Path:
     """
     Setup tier path with validation and directory creation.
 
@@ -105,8 +105,21 @@ def setup_tier_path(target, tier, filesystem: FileSystemProtocol):
     """
     info(f"{target=}")
     info(f"{tier=}")
+
+    # Validate target is absolute
+    if not target.is_absolute():
+        critical(f"Target directory must be an absolute path: {target}")
+        sys.exit(3)
+
+    # Validate tier name pattern
+    if not match(r"^(blue|green|staging|production|dev.*|test.*)$", tier):
+        critical(
+            f"Invalid tier name: {tier}. Must match pattern: blue|green|staging|production|dev.*|test.*"
+        )
+        sys.exit(3)
+
     if not filesystem.is_dir(target):
-        critical("target is not a directory")
+        critical(f"Target directory does not exist or is not a directory: {target}")
         sys.exit(3)
     tier_path = validate_tier_path(target, tier)
     info(f"{tier_path=}")
@@ -160,17 +173,25 @@ class MambaDeployer:
         self.console = Console()
         debug(f"vars(deployer)={vars(self)}")
 
-    def info(self):
+    def info(self) -> None:
         self.command_runner.run([MAMBA, "info"], env=self.env)
 
-    def deploy_conda_environments(self, worklist):
+    def deploy_conda_environments(self, worklist: list[Path]) -> None:
         for env_yaml in worklist:
             info(f"{env_yaml=}")
             returncode = self.deploy_env(env_yaml)
             if returncode:
-                error(f"{returncode=} for {env_yaml.name}")
+                error(
+                    f"Failed to deploy environment {env_yaml.name} (exit code {returncode})"
+                )
 
     def deploy_env(self, env_yaml: Path) -> int:
+        # Validate YAML file exists
+        yaml_full_path = DEFS_DIR / env_yaml if not env_yaml.is_absolute() else env_yaml
+        if not yaml_full_path.exists():
+            error(f"Environment definition file does not exist: {yaml_full_path}")
+            return 1
+
         env_name = env_yaml.stem
         options = []
         if self.keep:
@@ -197,13 +218,13 @@ class MambaDeployer:
             )
         return result.returncode
 
-    def deploy_bin(self):
+    def deploy_bin(self) -> None:
         self.copy_resource_dir(BIN_SOURCE_DIR, self.bin_dir)
 
-    def deploy_etc(self):
+    def deploy_etc(self) -> None:
         self.copy_resource_dir(ETC_SOURCE_DIR, self.etc_dir)
 
-    def copy_resource_dir(self, src_dir, dst_dir):
+    def copy_resource_dir(self, src_dir: Path, dst_dir: Path) -> None:
         if self.filesystem.exists(dst_dir):
             if self.keep:
                 warning(f"destination dir already exists: {dst_dir}")
@@ -227,7 +248,9 @@ class MambaDeployer:
             or self.write_meta("description", ["describe", "--dirty", "--all"])
         )
 
-    def write_meta(self, dest_name, subcommand, expect_fail=True) -> bool:
+    def write_meta(
+        self, dest_name: str, subcommand: list[str], expect_fail: bool = True
+    ) -> bool:
         command_prefix = ["git", "-C", str(CODE_ROOT_DIR)]
         command = command_prefix + subcommand
         stderr = DEVNULL if expect_fail else None

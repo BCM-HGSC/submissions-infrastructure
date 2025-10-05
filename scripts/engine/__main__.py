@@ -5,26 +5,40 @@ Top-level execution point for deploying infrastructure.
 from argparse import ArgumentParser
 from logging import debug, info
 from os import environ
-from os.path import isdir
 from pathlib import Path
-from sys import argv, executable
+import sys
 
-from .deploy import deploy_tier
+from .command_runner import RealCommandRunner
 from .config import config_logging
+from .deploy import deploy_tier
+from .filesystem import RealFileSystem
 
 
 def main(cli_args: list[str]):
     config_logging()
     info(f"running {__file__}:main")
     info(f"{environ=}")
-    info(f"{executable=}")
+    info(f"{sys.executable=}")
     debug(f"{cli_args=}")
-    args = parse_command_line(cli_args)
+    args = parse_command_line()
     info(f"{args=}")
-    deploy_tier(args.target, args.tier, args.dry_run, args.offline, args.mode)
+
+    # Create real implementations for production use
+    filesystem = RealFileSystem()
+    command_runner = RealCommandRunner()
+
+    deploy_tier(
+        args.target,
+        args.tier,
+        args.dry_run,
+        args.offline,
+        args.mode,
+        filesystem=filesystem,
+        command_runner=command_runner,
+    )
 
 
-def parse_command_line(cli_args):
+def parse_command_line():
     """
     `python3 -m engine TIER TARGET_DIR`
     """
@@ -47,16 +61,15 @@ def parse_command_line(cli_args):
         dest="mode",
         help="overwrite existing conda environments",
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def dir_path(string):
-    if isdir(string):
-        return Path(string)
-    else:
-        raise NotADirectoryError(string)
+    path = Path(string)
+    if path.is_dir():
+        return path
+    raise NotADirectoryError(string)
 
 
 if __name__ == "__main__":
-    exit(main(argv))
+    sys.exit(main(sys.argv))

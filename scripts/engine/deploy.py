@@ -14,6 +14,7 @@ from rich.console import Console
 
 from .command_runner import CommandRunnerProtocol, RealCommandRunner
 from .filesystem import FileSystemProtocol, RealFileSystem
+from .validators import ValidationError, validate_env_yaml
 
 MAMBA = Path(sys.executable).with_name("mamba")  # mamba in same bin/ as python3
 CODE_ROOT_DIR = Path(__file__).parent.parent.parent
@@ -186,10 +187,17 @@ class MambaDeployer:
                 )
 
     def deploy_env(self, env_yaml: Path) -> int:
-        # Validate YAML file exists
+        # Validate YAML file exists and is valid
         yaml_full_path = DEFS_DIR / env_yaml if not env_yaml.is_absolute() else env_yaml
         if not yaml_full_path.exists():
             error(f"Environment definition file does not exist: {yaml_full_path}")
+            return 1
+
+        # Validate YAML content
+        try:
+            validate_env_yaml(yaml_full_path)
+        except ValidationError as e:
+            error(f"Invalid environment definition: {e}")
             return 1
 
         env_name = env_yaml.stem

@@ -195,15 +195,15 @@ This plan addresses the testability and quality issues identified in the project
 ## Priority 5: Add Validation Layer
 
 ### 5.1 YAML Environment Validation
-- [ ] Create `scripts/engine/validators.py` module
-- [ ] Implement `validate_env_yaml(path: Path) -> bool`
-  - [ ] Check file exists and is readable
-  - [ ] Validate YAML syntax
-  - [ ] Validate required keys (channels, dependencies)
-  - [ ] Validate channel names
-  - [ ] Validate dependency format
-- [ ] Add validation to `deploy_env()` before deployment
-- [ ] Create unit tests in `tests/unit/test_validators.py`
+- [x] Create `scripts/engine/validators.py` module
+- [x] Implement `validate_env_yaml(path: Path) -> bool`
+  - [x] Check file exists and is readable
+  - [x] Validate YAML syntax
+  - [x] Validate required keys (channels, dependencies)
+  - [x] Validate channel names
+  - [x] Validate dependency format
+- [x] Add validation to `deploy_env()` before deployment
+- [x] Create unit tests in `tests/unit/test_validators.py`
 
 ### 5.2 Binary Availability Checks
 - [ ] Create `check_required_binaries()` function

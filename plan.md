@@ -215,11 +215,11 @@ This plan addresses the testability and quality issues identified in the project
 - [x] Provide helpful error messages with installation instructions
 
 ### 5.3 Symlink Target Validation
-- [ ] Create `validate_symlink_target(link: Path, expected: list[str]) -> bool`
-- [ ] Use in `validate_and_get_color()` in promote_staging.py
-- [ ] Use in engine rotation logic
-- [ ] Add checks for dangling symlinks
-- [ ] Add unit tests for edge cases
+- [x] Create `validate_symlink_target(link: Path, expected: list[str]) -> bool`
+- [x] Use in `validate_and_get_color()` in promote_staging.py
+- [x] Use in engine rotation logic
+- [x] Add checks for dangling symlinks
+- [x] Add unit tests for edge cases
 
 ### 5.4 Disk Space Checks
 - [ ] Create `check_disk_space(path: Path, required_gb: int) -> bool`

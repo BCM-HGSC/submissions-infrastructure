@@ -24,6 +24,10 @@ from pathlib import Path
 import sys
 from typing import NoReturn
 
+# Import validation utilities
+sys.path.insert(0, str(Path(__file__).parent / "engine"))
+from validators import SymlinkValidationError, validate_symlink_target
+
 BLUE_GREEN_TRANSITIONS = {
     "blue": "green",
     "green": "blue",
@@ -104,14 +108,13 @@ def validate_and_get_color(tier_path: Path) -> str:
     Die if the tier path is not a symlink or does not point to the blue or green
     directories.
     """
-    if not tier_path.is_symlink():
-        die(f"Not a symlink: {tier_path}")
-    if not tier_path.is_dir():
-        die(f"Symlink does not point to a directory: {tier_path}")
-    color = tier_path.readlink().name
-    if not validate_color(color):
-        die(f"Target of {tier_path} is neither 'blue' nor 'green': {color}")
-    return color
+    try:
+        # Use the validation function to check symlink and target
+        validate_symlink_target(tier_path, ["blue", "green"], check_exists=True)
+        # If validation passes, read and return the color
+        return tier_path.readlink().name
+    except SymlinkValidationError as e:
+        die(str(e))
 
 
 def die(message: str) -> NoReturn:

@@ -337,3 +337,60 @@ def check_deploy_binaries(require_git: bool = True) -> dict[str, Path | None]:
         binaries=binaries,
         optional=optional,
     )
+
+
+class SymlinkValidationError(Exception):
+    """Exception raised when symlink validation fails."""
+
+
+def validate_symlink_target(
+    link: Path, expected: list[str], check_exists: bool = True
+) -> bool:
+    """
+    Validate that a symlink points to one of the expected targets.
+
+    Args:
+        link: Path to the symlink to validate
+        expected: List of expected target names (not full paths)
+        check_exists: If True, verify that the symlink target exists
+
+    Returns:
+        True if validation passes
+
+    Raises:
+        SymlinkValidationError: If validation fails with details about what failed
+    """
+    # Check if path exists
+    if not link.exists() and not link.is_symlink():
+        raise SymlinkValidationError(f"Path does not exist: {link}")
+
+    # Check if it's actually a symlink
+    if not link.is_symlink():
+        raise SymlinkValidationError(f"Path is not a symlink: {link}")
+
+    # Read the symlink target
+    try:
+        target = link.readlink()
+    except OSError as e:
+        raise SymlinkValidationError(f"Cannot read symlink {link}: {e}") from e
+
+    # Get the target name (last component of path)
+    target_name = target.name if isinstance(target, Path) else Path(target).name
+
+    # Check if target name is in expected list
+    if target_name not in expected:
+        expected_str = ", ".join(expected)
+        raise SymlinkValidationError(
+            f"Symlink {link} points to '{target_name}', expected one of: {expected_str}"
+        )
+
+    # Check if target exists (if requested)
+    if check_exists:
+        # Resolve relative to the symlink's parent directory
+        resolved_target = link.parent / target
+        if not resolved_target.exists():
+            raise SymlinkValidationError(
+                f"Symlink {link} points to non-existent target: {target} (resolved to {resolved_target})"
+            )
+
+    return True

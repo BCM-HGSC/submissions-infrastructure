@@ -100,6 +100,7 @@ When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment vari
 **Testability Design**:
 - `scripts/engine/filesystem.py`: Filesystem abstraction with Protocol, real implementation, and mock
 - `scripts/engine/command_runner.py`: Command execution abstraction for mocking subprocess calls
+- `scripts/engine/validators.py`: YAML environment validation with comprehensive error messages
 - Dependency injection in `deploy_tier()` and `MambaDeployer` for testing
 - Pure functions separated from side effects (e.g., `validate_tier_path()`, `validate_color()`)
 
@@ -119,7 +120,7 @@ When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment vari
 ### Debugging
 - Use `--verbose` flag for detailed logging
 - Check engine logs in deployment process
-- Validate YAML definitions before deployment
+- YAML definitions are automatically validated before deployment
 
 ## Testing
 
@@ -145,7 +146,7 @@ pytest --cov=scripts/engine --cov-report=html
 - Fast, isolated tests using mocks
 - No external dependencies or network calls
 - Test individual functions and error conditions
-- 98 tests covering argument parsing, path validation, blue/green logic, error handling, and environment definitions
+- 129 tests covering argument parsing, path validation, blue/green logic, error handling, environment definitions, and YAML validation
 
 **Integration Tests** (`tests/integration/`):
 - Test complete workflows with actual script execution

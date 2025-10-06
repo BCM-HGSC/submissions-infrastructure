@@ -355,7 +355,6 @@ This plan addresses the testability and quality issues identified in the project
 - [ ] Add --verify-only mode for security audits
 
 ### AI.5 Documentation
-- [ ] Add docstrings to all Python functions
 - [ ] Add comments to complex bash functions
 - [ ] Create troubleshooting guide (common errors and solutions)
 - [ ] Create architecture diagram

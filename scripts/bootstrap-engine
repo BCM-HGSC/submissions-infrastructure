@@ -96,7 +96,46 @@ setup_environment() {
     fi
 }
 
+check_required_binaries() {
+    # Check for binaries required by fetch-micromamba
+    local missing=()
+
+    if ! command -v /usr/bin/curl &> /dev/null; then
+        missing+=("curl")
+    fi
+
+    if ! command -v /usr/bin/tar &> /dev/null; then
+        missing+=("tar")
+    fi
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log_error "Required binaries not found: ${missing[*]}"
+        log_error ""
+        for binary in "${missing[@]}"; do
+            case "$binary" in
+                curl)
+                    log_error "Install curl with:"
+                    log_error "  - apt-get install curl (Debian/Ubuntu)"
+                    log_error "  - yum install curl (RHEL/CentOS)"
+                    log_error "  - brew install curl (macOS)"
+                    ;;
+                tar)
+                    log_error "Install tar with:"
+                    log_error "  - Usually pre-installed on Unix systems"
+                    log_error "  - apt-get install tar (Debian/Ubuntu)"
+                    log_error "  - yum install tar (RHEL/CentOS)"
+                    ;;
+            esac
+            log_error ""
+        done
+        die "Missing required binaries for bootstrap" 2
+    fi
+}
+
 setup_micromamba() {
+    # Check for required binaries before fetching micromamba
+    check_required_binaries
+
     # Check if micromamba already exists
     MAMBA="$ENGINE_HOME/micromamba"
     if [[ ! -x "$MAMBA" ]]; then

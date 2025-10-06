@@ -3,6 +3,7 @@ Validation functions for environment definitions and configuration files.
 """
 
 from pathlib import Path
+import shutil
 from typing import Any
 
 import yaml
@@ -197,3 +198,142 @@ def _validate_dict_dependency(dep: dict[str, Any], index: int, path: Path) -> No
     else:
         # Unknown dict format - allow but could warn
         pass
+
+
+class BinaryNotFoundError(Exception):
+    """Exception raised when a required binary is not found."""
+
+
+def check_binary_available(
+    binary_name: str, search_paths: list[str] | None = None
+) -> Path | None:
+    """
+    Check if a binary is available in the system PATH or specified paths.
+
+    Args:
+        binary_name: Name of the binary to check for
+        search_paths: Optional list of specific paths to check (e.g., ["/usr/bin", "/bin"])
+
+    Returns:
+        Path to the binary if found, None otherwise
+    """
+    if search_paths:
+        # Check specific paths first
+        for search_path in search_paths:
+            binary_path = Path(search_path) / binary_name
+            if binary_path.exists() and binary_path.is_file():
+                return binary_path
+
+    # Check system PATH
+    binary_path = shutil.which(binary_name)
+    return Path(binary_path) if binary_path else None
+
+
+def check_required_binaries(
+    binaries: list[str],
+    search_paths: dict[str, list[str]] | None = None,
+    optional: list[str] | None = None,
+) -> dict[str, Path | None]:
+    """
+    Check for required binaries and return their paths.
+
+    Args:
+        binaries: List of binary names to check for
+        search_paths: Optional dict mapping binary names to specific search paths
+        optional: List of binary names that are optional (won't raise error if missing)
+
+    Returns:
+        Dictionary mapping binary names to their paths (or None if not found)
+
+    Raises:
+        BinaryNotFoundError: If a required binary is not found
+    """
+    search_paths = search_paths or {}
+    optional = optional or []
+    results = {}
+    missing_required = []
+
+    for binary in binaries:
+        specific_paths = search_paths.get(binary)
+        binary_path = check_binary_available(binary, specific_paths)
+        results[binary] = binary_path
+
+        if binary_path is None and binary not in optional:
+            missing_required.append(binary)
+
+    if missing_required:
+        error_msg = _format_missing_binaries_error(missing_required)
+        raise BinaryNotFoundError(error_msg)
+
+    return results
+
+
+def _format_missing_binaries_error(missing_binaries: list[str]) -> str:
+    """Format a helpful error message for missing binaries."""
+    lines = ["Required binaries not found:", ""]
+
+    for binary in missing_binaries:
+        lines.append(f"  - {binary}")
+
+        # Add installation instructions
+        if binary == "curl":
+            lines.append("    Install with: apt-get install curl (Debian/Ubuntu)")
+            lines.append("                  yum install curl (RHEL/CentOS)")
+            lines.append("                  brew install curl (macOS)")
+        elif binary == "git":
+            lines.append("    Install with: apt-get install git (Debian/Ubuntu)")
+            lines.append("                  yum install git (RHEL/CentOS)")
+            lines.append("                  brew install git (macOS)")
+        elif binary == "tar":
+            lines.append("    Usually pre-installed on Unix systems")
+            lines.append("    Install with: apt-get install tar (Debian/Ubuntu)")
+            lines.append("                  yum install tar (RHEL/CentOS)")
+        elif binary in ("mamba", "micromamba"):
+            lines.append("    Mamba should be installed via bootstrap process")
+            lines.append("    See: https://mamba.readthedocs.io/")
+
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def check_bootstrap_binaries() -> dict[str, Path | None]:
+    """
+    Check for binaries required during bootstrap process.
+
+    Returns:
+        Dictionary mapping binary names to their paths
+
+    Raises:
+        BinaryNotFoundError: If required binaries are not found
+    """
+    # These are the binaries used by fetch-micromamba script
+    return check_required_binaries(
+        binaries=["curl", "tar"],
+        search_paths={
+            "curl": ["/usr/bin"],
+            "tar": ["/usr/bin"],
+        },
+    )
+
+
+def check_deploy_binaries(require_git: bool = True) -> dict[str, Path | None]:
+    """
+    Check for binaries required during deployment process.
+
+    Args:
+        require_git: Whether git is required (default True)
+
+    Returns:
+        Dictionary mapping binary names to their paths
+
+    Raises:
+        BinaryNotFoundError: If required binaries are not found
+    """
+    binaries = ["git"]
+    optional = [] if require_git else ["git"]
+
+    return check_required_binaries(
+        binaries=binaries,
+        optional=optional,
+    )

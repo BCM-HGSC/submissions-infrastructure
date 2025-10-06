@@ -206,13 +206,13 @@ This plan addresses the testability and quality issues identified in the project
 - [x] Create unit tests in `tests/unit/test_validators.py`
 
 ### 5.2 Binary Availability Checks
-- [ ] Create `check_required_binaries()` function
-  - [ ] Check for mamba/micromamba
-  - [ ] Check for curl (for fetch-micromamba)
-  - [ ] Check for git (for metadata)
-  - [ ] Check for tar (for micromamba extraction)
-- [ ] Add checks to bootstrap script before operations
-- [ ] Provide helpful error messages with installation instructions
+- [x] Create `check_required_binaries()` function
+  - [x] Check for mamba/micromamba
+  - [x] Check for curl (for fetch-micromamba)
+  - [x] Check for git (for metadata)
+  - [x] Check for tar (for micromamba extraction)
+- [x] Add checks to bootstrap-engine script before operations
+- [x] Provide helpful error messages with installation instructions
 
 ### 5.3 Symlink Target Validation
 - [ ] Create `validate_symlink_target(link: Path, expected: list[str]) -> bool`

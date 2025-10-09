@@ -195,46 +195,63 @@ This plan addresses the testability and quality issues identified in the project
 ## Priority 5: Add Validation Layer
 
 ### 5.1 YAML Environment Validation
-- [ ] Create `scripts/engine/validators.py` module
-- [ ] Implement `validate_env_yaml(path: Path) -> bool`
-  - [ ] Check file exists and is readable
-  - [ ] Validate YAML syntax
-  - [ ] Validate required keys (channels, dependencies)
-  - [ ] Validate channel names
-  - [ ] Validate dependency format
-- [ ] Add validation to `deploy_env()` before deployment
-- [ ] Create unit tests in `tests/unit/test_validators.py`
+- [x] Create `scripts/engine/validators.py` module
+- [x] Implement `validate_env_yaml(path: Path) -> bool`
+  - [x] Check file exists and is readable
+  - [x] Validate YAML syntax
+  - [x] Validate required keys (channels, dependencies)
+  - [x] Validate channel names
+  - [x] Validate dependency format
+- [x] Add validation to `deploy_env()` before deployment
+- [x] Create unit tests in `tests/unit/test_validators.py`
 
 ### 5.2 Binary Availability Checks
-- [ ] Create `check_required_binaries()` function
-  - [ ] Check for mamba/micromamba
-  - [ ] Check for curl (for fetch-micromamba)
-  - [ ] Check for git (for metadata)
-  - [ ] Check for tar (for micromamba extraction)
-- [ ] Add checks to bootstrap script before operations
-- [ ] Provide helpful error messages with installation instructions
+- [x] Create `check_required_binaries()` function
+  - [x] Check for mamba/micromamba
+  - [x] Check for curl (for fetch-micromamba)
+  - [x] Check for git (for metadata)
+  - [x] Check for tar (for micromamba extraction)
+- [x] Add checks to bootstrap-engine script before operations
+- [x] Provide helpful error messages with installation instructions
 
 ### 5.3 Symlink Target Validation
-- [ ] Create `validate_symlink_target(link: Path, expected: list[str]) -> bool`
-- [ ] Use in `validate_and_get_color()` in promote_staging.py
-- [ ] Use in engine rotation logic
-- [ ] Add checks for dangling symlinks
-- [ ] Add unit tests for edge cases
+- [x] Create `validate_symlink_target(link: Path, expected: list[str]) -> bool`
+- [x] Use in `validate_and_get_color()` in promote_staging.py
+- [x] Use in engine rotation logic
+- [x] Add checks for dangling symlinks
+- [x] Add unit tests for edge cases
 
 ### 5.4 Disk Space Checks
-- [ ] Create `check_disk_space(path: Path, required_gb: int) -> bool`
-- [ ] Add to bootstrap before creating directories
-- [ ] Add to deploy before installing environments
-- [ ] Estimate required space based on environment definitions
-- [ ] Warn user if space is insufficient
+- [x] Create `check_disk_space(path: Path, operation: str, env_yamls: list[Path] | None, force: bool) -> tuple[bool, str]`
+  - [x] Hybrid approach with static thresholds and dynamic YAML-based estimation
+  - [x] Bootstrap: 5 GB minimum, 10 GB recommended
+  - [x] Deploy: 15 GB minimum, 30 GB recommended
+  - [x] Package estimation: ~50MB per package with 1.5x multiplier for transitive deps
+- [x] Create `get_available_space_gb(path: Path) -> float` helper function
+- [x] Create `estimate_env_size_gb(yaml_path: Path) -> float` helper function
+- [x] Add to bootstrap-engine before creating directories
+  - [x] Added `check_disk_space()` bash function
+  - [x] Added `--force` flag to bypass checks
+  - [x] Call check early in main() workflow
+- [x] Add to deploy.py before installing environments
+  - [x] Check disk space with YAML-based estimation
+  - [x] Respect `--force` mode parameter
+  - [x] Display warnings/info based on available space
+- [x] Add comprehensive unit tests in `tests/unit/test_validators.py`
+  - [x] Test get_available_space_gb() with mocked os.statvfs
+  - [x] Test estimate_env_size_gb() for various environment sizes
+  - [x] Test check_disk_space() for all scenarios (plenty, below recommended, below minimum, force mode)
+  - [x] Test bootstrap vs deploy operation thresholds
+  - [x] Test YAML-based estimation warnings
 
 ### 5.5 Path Traversal Protection
-- [ ] Create `validate_safe_path(path: Path, base: Path) -> bool`
-  - [ ] Ensure path is within expected base directory
-  - [ ] Check for .. components
-  - [ ] Resolve symlinks and verify
-- [ ] Add to TARGET_DIR validation in all scripts
-- [ ] Add unit tests with malicious path examples
+- [x] Create `validate_safe_path(path: Path, base: Path) -> bool`
+  - [x] Ensure path is within expected base directory
+  - [x] Check for .. components
+  - [x] Resolve symlinks and verify
+- [x] Add to TARGET_DIR validation in deploy.py
+- [x] Add to symlink target validation in promote_staging.py
+- [x] Add unit tests with malicious path examples (16 tests covering edge cases)
 
 ## Priority 6: End-to-End Tests (Real Resources)
 
@@ -355,7 +372,6 @@ This plan addresses the testability and quality issues identified in the project
 - [ ] Add --verify-only mode for security audits
 
 ### AI.5 Documentation
-- [ ] Add docstrings to all Python functions
 - [ ] Add comments to complex bash functions
 - [ ] Create troubleshooting guide (common errors and solutions)
 - [ ] Create architecture diagram

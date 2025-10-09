@@ -14,6 +14,14 @@ from rich.console import Console
 
 from .command_runner import CommandRunnerProtocol, RealCommandRunner
 from .filesystem import FileSystemProtocol, RealFileSystem
+from .validators import (
+    DiskSpaceError,
+    PathTraversalError,
+    ValidationError,
+    check_disk_space,
+    validate_env_yaml,
+    validate_safe_path,
+)
 
 MAMBA = Path(sys.executable).with_name("mamba")  # mamba in same bin/ as python3
 CODE_ROOT_DIR = Path(__file__).parent.parent.parent
@@ -38,6 +46,22 @@ def deploy_tier(
     if command_runner is None:
         command_runner = RealCommandRunner()
 
+    # Check disk space before starting deployment
+    force = mode == "force"
+    worklist = list_conda_environment_defs()
+    try:
+        success, message = check_disk_space(
+            target, operation="deploy", env_yamls=worklist, force=force
+        )
+        if message:
+            if message.startswith(("WARNING:", "ERROR:")):
+                warning(message)
+            else:
+                info(message)
+    except DiskSpaceError as e:
+        critical(str(e))
+        sys.exit(4)
+
     check_mamba(filesystem)
     prod_path = setup_tier_path(target, "production", filesystem)
     tier_path = setup_tier_path(target, tier, filesystem)
@@ -57,7 +81,6 @@ def deploy_tier(
     )
     if deployer.keep:
         deployer.info()
-    worklist = list_conda_environment_defs()
     deployer.deploy_conda_environments(worklist)
     if deployer.dry_run:
         return
@@ -122,6 +145,14 @@ def setup_tier_path(target: Path, tier: str, filesystem: FileSystemProtocol) -> 
         critical(f"Target directory does not exist or is not a directory: {target}")
         sys.exit(3)
     tier_path = validate_tier_path(target, tier)
+
+    # Validate that tier path is safely within target directory
+    try:
+        validate_safe_path(tier_path, target)
+    except PathTraversalError as e:
+        critical(f"Path traversal detected: {e}")
+        sys.exit(3)
+
     info(f"{tier_path=}")
     if not filesystem.is_dir(tier_path):
         filesystem.mkdir(tier_path, parents=True, exist_ok=True)
@@ -186,10 +217,17 @@ class MambaDeployer:
                 )
 
     def deploy_env(self, env_yaml: Path) -> int:
-        # Validate YAML file exists
+        # Validate YAML file exists and is valid
         yaml_full_path = DEFS_DIR / env_yaml if not env_yaml.is_absolute() else env_yaml
         if not yaml_full_path.exists():
             error(f"Environment definition file does not exist: {yaml_full_path}")
+            return 1
+
+        # Validate YAML content
+        try:
+            validate_env_yaml(yaml_full_path)
+        except ValidationError as e:
+            error(f"Invalid environment definition: {e}")
             return 1
 
         env_name = env_yaml.stem

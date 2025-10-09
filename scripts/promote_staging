@@ -24,6 +24,15 @@ from pathlib import Path
 import sys
 from typing import NoReturn
 
+# Import validation utilities
+sys.path.insert(0, str(Path(__file__).parent / "engine"))
+from validators import (
+    PathTraversalError,
+    SymlinkValidationError,
+    validate_safe_path,
+    validate_symlink_target,
+)
+
 BLUE_GREEN_TRANSITIONS = {
     "blue": "green",
     "green": "blue",
@@ -73,13 +82,20 @@ def main() -> None:
         die("environment is missing IAC_TIER_DIR")
     tier_path = Path(environ["IAC_TIER_DIR"]).resolve()
     infrastructure_path = tier_path.parent
+
+    # Validate that tier_path is within infrastructure_path (basic safety check)
+    try:
+        validate_safe_path(tier_path, infrastructure_path)
+    except PathTraversalError as e:
+        die(f"Path traversal detected in IAC_TIER_DIR: {e}")
+
     print(f"{infrastructure_path=}")
     staging_path = infrastructure_path / "staging"
-    staging_color = validate_and_get_color(staging_path)
+    staging_color = validate_and_get_color(staging_path, infrastructure_path)
     production_path = infrastructure_path / "production"
 
     if production_path.exists():
-        production_color = validate_and_get_color(production_path)
+        production_color = validate_and_get_color(production_path, infrastructure_path)
         if production_color == staging_color:
             die(f"staging and production symlinks have the same color: {staging_color}")
         if args.dry_run:
@@ -98,20 +114,35 @@ def main() -> None:
         staging_path.symlink_to(new_staging_color)
 
 
-def validate_and_get_color(tier_path: Path) -> str:
+def validate_and_get_color(tier_path: Path, infrastructure_path: Path) -> str:
     """
     Return the color (blue or green) of the input tier path symlink.
     Die if the tier path is not a symlink or does not point to the blue or green
     directories.
+
+    Args:
+        tier_path: Path to the tier symlink (staging or production)
+        infrastructure_path: Path to the infrastructure directory
+
+    Returns:
+        Color name ('blue' or 'green')
     """
-    if not tier_path.is_symlink():
-        die(f"Not a symlink: {tier_path}")
-    if not tier_path.is_dir():
-        die(f"Symlink does not point to a directory: {tier_path}")
-    color = tier_path.readlink().name
-    if not validate_color(color):
-        die(f"Target of {tier_path} is neither 'blue' nor 'green': {color}")
-    return color
+    try:
+        # Use the validation function to check symlink and target
+        validate_symlink_target(tier_path, ["blue", "green"], check_exists=True)
+
+        # Validate that the symlink target is within infrastructure directory
+        target = tier_path.readlink()
+        # Resolve target relative to tier_path's parent
+        resolved_target = (tier_path.parent / target).resolve()
+        validate_safe_path(resolved_target, infrastructure_path)
+
+        # If validation passes, return the color
+        return target.name
+    except SymlinkValidationError as e:
+        die(str(e))
+    except PathTraversalError as e:
+        die(f"Path traversal detected in symlink target: {e}")
 
 
 def die(message: str) -> NoReturn:

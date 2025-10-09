@@ -10,6 +10,7 @@ OFFLINE=""
 VERBOSE=""
 YES=""
 DRY_RUN=""
+FORCE=""
 TARGET_DIR=""
 
 main() {
@@ -18,6 +19,7 @@ main() {
     log_info "Starting bootstrap-engine"
     log_debug "Arguments: TARGET_DIR=$TARGET_DIR, OFFLINE=$OFFLINE, VERBOSE=$VERBOSE, YES=$YES"
 
+    check_disk_space "$TARGET_DIR"
     determine_project_root
     setup_environment
     setup_micromamba
@@ -47,6 +49,10 @@ parse_args() {
                 ;;
             -n|--dry-run)
                 DRY_RUN="y"
+                shift
+                ;;
+            --force)
+                FORCE="y"
                 shift
                 ;;
             -h|--help)
@@ -96,7 +102,78 @@ setup_environment() {
     fi
 }
 
+check_disk_space() {
+    local path="$1"
+    local minimum_gb=5
+
+    # Get available space in GB using df
+    # Use the directory if it exists, otherwise use parent directory
+    local check_path="$path"
+    if [[ ! -d "$check_path" ]]; then
+        check_path="$(dirname "$path")"
+    fi
+
+    # Get available space in KB, convert to GB
+    local available_kb
+    available_kb=$(df -k "$check_path" | awk 'NR==2 {print $4}')
+    local available_gb=$((available_kb / 1024 / 1024))
+
+    log_debug "Disk space check: ${available_gb}GB available at $check_path"
+
+    if [[ $available_gb -lt $minimum_gb ]]; then
+        log_error "Insufficient disk space for bootstrap"
+        log_error "Available: ${available_gb}GB"
+        log_error "Required: ${minimum_gb}GB minimum"
+        log_error ""
+        if [[ -z "$FORCE" ]]; then
+            die "Bootstrap requires at least ${minimum_gb}GB of free space. Use --force to override." 4
+        else
+            log_error "WARNING: Proceeding anyway due to --force flag"
+            log_error ""
+        fi
+    fi
+}
+
+check_required_binaries() {
+    # Check for binaries required by fetch-micromamba
+    local missing=()
+
+    if ! command -v /usr/bin/curl &> /dev/null; then
+        missing+=("curl")
+    fi
+
+    if ! command -v /usr/bin/tar &> /dev/null; then
+        missing+=("tar")
+    fi
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log_error "Required binaries not found: ${missing[*]}"
+        log_error ""
+        for binary in "${missing[@]}"; do
+            case "$binary" in
+                curl)
+                    log_error "Install curl with:"
+                    log_error "  - apt-get install curl (Debian/Ubuntu)"
+                    log_error "  - yum install curl (RHEL/CentOS)"
+                    log_error "  - brew install curl (macOS)"
+                    ;;
+                tar)
+                    log_error "Install tar with:"
+                    log_error "  - Usually pre-installed on Unix systems"
+                    log_error "  - apt-get install tar (Debian/Ubuntu)"
+                    log_error "  - yum install tar (RHEL/CentOS)"
+                    ;;
+            esac
+            log_error ""
+        done
+        die "Missing required binaries for bootstrap" 2
+    fi
+}
+
 setup_micromamba() {
+    # Check for required binaries before fetching micromamba
+    check_required_binaries
+
     # Check if micromamba already exists
     MAMBA="$ENGINE_HOME/micromamba"
     if [[ ! -x "$MAMBA" ]]; then
@@ -229,6 +306,7 @@ Options:
     -v, --verbose  Enable verbose logging
     -y, --yes      Pass -y flag to mamba command (assume yes for prompts)
     -n, --dry-run  Show what would be done without making changes
+    --force        Bypass disk space checks and other safety checks
     -h, --help     Show this help message
 
 Environment variables set automatically:

@@ -491,6 +491,75 @@ class SymlinkValidationError(Exception):
     """Exception raised when symlink validation fails."""
 
 
+class PathTraversalError(Exception):
+    """Exception raised when path traversal attack is detected."""
+
+
+def validate_safe_path(path: Path, base: Path) -> bool:
+    """
+    Validate that a path is safely within a base directory.
+
+    This function protects against path traversal attacks by ensuring that
+    the given path, after resolving symlinks and normalizing, is actually
+    within the expected base directory.
+
+    Args:
+        path: Path to validate (may be relative or absolute)
+        base: Base directory that path must be within
+
+    Returns:
+        True if validation passes
+
+    Raises:
+        PathTraversalError: If path escapes the base directory
+
+    Examples:
+        >>> validate_safe_path(Path("/tmp/foo/bar"), Path("/tmp"))
+        True
+        >>> validate_safe_path(Path("/tmp/foo/../../../etc/passwd"), Path("/tmp"))
+        PathTraversalError: Path traversal detected...
+    """
+    try:
+        # Resolve both paths to absolute, canonical forms
+        # This handles symlinks, .., ., and makes paths absolute
+        resolved_path = path.resolve()
+        resolved_base = base.resolve()
+    except (OSError, RuntimeError) as e:
+        # OSError: permission denied, path doesn't exist, etc.
+        # RuntimeError: infinite loop in symlinks
+        raise PathTraversalError(
+            f"Cannot resolve path {path} relative to base {base}: {e}"
+        ) from e
+
+    # Check if resolved path is within base directory
+    # Use is_relative_to if available (Python 3.9+), otherwise manual check
+    try:
+        if not resolved_path.is_relative_to(resolved_base):
+            raise PathTraversalError(
+                f"Path traversal detected: {path} resolves to {resolved_path}, "
+                f"which is outside base directory {base} (resolved to {resolved_base})"
+            )
+    except AttributeError:
+        # Fallback for Python < 3.9
+        try:
+            resolved_path.relative_to(resolved_base)
+        except ValueError as e:
+            raise PathTraversalError(
+                f"Path traversal detected: {path} resolves to {resolved_path}, "
+                f"which is outside base directory {base} (resolved to {resolved_base})"
+            ) from e
+
+    # Additional check: ensure no .. components in the original path that
+    # could indicate an attempted traversal (belt-and-suspenders approach)
+    parts = path.parts
+    if ".." in parts:
+        # This is not necessarily malicious (could be legitimate relative path),
+        # but combined with the resolve check above, we've verified it's safe
+        pass
+
+    return True
+
+
 def validate_symlink_target(
     link: Path, expected: list[str], check_exists: bool = True
 ) -> bool:

@@ -75,14 +75,15 @@ def test_blue_green_transitions_dictionary():
 def test_validate_and_get_color_blue_symlink(tmp_path):
     """Test validate_and_get_color with symlink pointing to blue."""
     # Create blue directory
-    blue_dir = tmp_path / "infrastructure" / "blue"
+    infrastructure = tmp_path / "infrastructure"
+    blue_dir = infrastructure / "blue"
     blue_dir.mkdir(parents=True)
 
     # Create staging symlink pointing to blue
-    staging_link = tmp_path / "infrastructure" / "staging"
+    staging_link = infrastructure / "staging"
     staging_link.symlink_to("blue")
 
-    color = validate_and_get_color(staging_link)
+    color = validate_and_get_color(staging_link, infrastructure)
 
     assert color == "blue"
 
@@ -90,14 +91,15 @@ def test_validate_and_get_color_blue_symlink(tmp_path):
 def test_validate_and_get_color_green_symlink(tmp_path):
     """Test validate_and_get_color with symlink pointing to green."""
     # Create green directory
-    green_dir = tmp_path / "infrastructure" / "green"
+    infrastructure = tmp_path / "infrastructure"
+    green_dir = infrastructure / "green"
     green_dir.mkdir(parents=True)
 
     # Create production symlink pointing to green
-    prod_link = tmp_path / "infrastructure" / "production"
+    prod_link = infrastructure / "production"
     prod_link.symlink_to("green")
 
-    color = validate_and_get_color(prod_link)
+    color = validate_and_get_color(prod_link, infrastructure)
 
     assert color == "green"
 
@@ -105,72 +107,81 @@ def test_validate_and_get_color_green_symlink(tmp_path):
 def test_validate_and_get_color_not_a_symlink_file(tmp_path):
     """Test validate_and_get_color exits when path is a regular file."""
     # Create a regular file instead of a symlink
-    test_file = tmp_path / "staging"
+    infrastructure = tmp_path / "infrastructure"
+    infrastructure.mkdir()
+    test_file = infrastructure / "staging"
     test_file.write_text("not a symlink")
 
     with pytest.raises(SystemExit):
-        validate_and_get_color(test_file)
+        validate_and_get_color(test_file, infrastructure)
 
 
 def test_validate_and_get_color_not_a_symlink_directory(tmp_path):
     """Test validate_and_get_color exits when path is a directory."""
     # Create a regular directory instead of a symlink
-    test_dir = tmp_path / "staging"
+    infrastructure = tmp_path / "infrastructure"
+    infrastructure.mkdir()
+    test_dir = infrastructure / "staging"
     test_dir.mkdir()
 
     with pytest.raises(SystemExit):
-        validate_and_get_color(test_dir)
+        validate_and_get_color(test_dir, infrastructure)
 
 
 def test_validate_and_get_color_broken_symlink(tmp_path):
     """Test validate_and_get_color exits when symlink is broken."""
     # Create a symlink to a nonexistent target
-    broken_link = tmp_path / "staging"
+    infrastructure = tmp_path / "infrastructure"
+    infrastructure.mkdir()
+    broken_link = infrastructure / "staging"
     broken_link.symlink_to("nonexistent")
 
     with pytest.raises(SystemExit):
-        validate_and_get_color(broken_link)
+        validate_and_get_color(broken_link, infrastructure)
 
 
 def test_validate_and_get_color_invalid_target(tmp_path):
     """Test validate_and_get_color exits when symlink points to invalid color."""
     # Create a directory with invalid color name
-    invalid_dir = tmp_path / "infrastructure" / "red"
+    infrastructure = tmp_path / "infrastructure"
+    invalid_dir = infrastructure / "red"
     invalid_dir.mkdir(parents=True)
 
     # Create symlink pointing to invalid color
-    test_link = tmp_path / "infrastructure" / "staging"
+    test_link = infrastructure / "staging"
     test_link.symlink_to("red")
 
     with pytest.raises(SystemExit):
-        validate_and_get_color(test_link)
+        validate_and_get_color(test_link, infrastructure)
 
 
 def test_validate_and_get_color_symlink_to_staging(tmp_path):
     """Test validate_and_get_color rejects symlink to 'staging'."""
     # Create staging directory
-    staging_dir = tmp_path / "infrastructure" / "staging"
+    infrastructure = tmp_path / "infrastructure"
+    staging_dir = infrastructure / "staging"
     staging_dir.mkdir(parents=True)
 
     # Create a symlink pointing to staging (invalid)
-    test_link = tmp_path / "infrastructure" / "test"
+    test_link = infrastructure / "test"
     test_link.symlink_to("staging")
 
     with pytest.raises(SystemExit):
-        validate_and_get_color(test_link)
+        validate_and_get_color(test_link, infrastructure)
 
 
 def test_validate_and_get_color_with_absolute_symlink(tmp_path):
     """Test validate_and_get_color works with absolute path symlink."""
     # Create blue directory
-    blue_dir = tmp_path / "infrastructure" / "blue"
+    infrastructure = tmp_path / "infrastructure"
+    blue_dir = infrastructure / "blue"
     blue_dir.mkdir(parents=True)
 
     # Create staging symlink with absolute path
-    staging_link = tmp_path / "infrastructure" / "staging"
+    staging_link = infrastructure / "staging"
     staging_link.symlink_to(blue_dir)
 
-    color = validate_and_get_color(staging_link)
+    color = validate_and_get_color(staging_link, infrastructure)
 
     # readlink().name should still extract "blue" from the absolute path
     assert color == "blue"

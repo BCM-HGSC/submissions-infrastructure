@@ -8,6 +8,7 @@ import pytest
 from scripts.engine.validators import (
     BinaryNotFoundError,
     DiskSpaceError,
+    PathTraversalError,
     ValidationError,
     check_binary_available,
     check_bootstrap_binaries,
@@ -17,6 +18,7 @@ from scripts.engine.validators import (
     estimate_env_size_gb,
     get_available_space_gb,
     validate_env_yaml,
+    validate_safe_path,
 )
 
 
@@ -850,3 +852,202 @@ dependencies:
     assert "WARNING: Disk space may be tight" in message
     assert "16.0GB" in message
     assert "Estimated need" in message
+
+
+# Path traversal protection tests
+
+
+def test_validate_safe_path_valid_subdirectory(tmp_path):
+    """Test validate_safe_path passes for a valid path within base."""
+    base = tmp_path
+    subdir = base / "subdir"
+    subdir.mkdir()
+
+    assert validate_safe_path(subdir, base) is True
+
+
+def test_validate_safe_path_valid_nested_path(tmp_path):
+    """Test validate_safe_path passes for nested directories."""
+    base = tmp_path
+    nested = base / "level1" / "level2" / "level3"
+    nested.mkdir(parents=True)
+
+    assert validate_safe_path(nested, base) is True
+
+
+def test_validate_safe_path_same_directory(tmp_path):
+    """Test validate_safe_path passes when path equals base."""
+    base = tmp_path
+
+    assert validate_safe_path(base, base) is True
+
+
+def test_validate_safe_path_relative_path_within_base(tmp_path):
+    """Test validate_safe_path passes for relative path within base."""
+    base = tmp_path
+    subdir = base / "subdir"
+    subdir.mkdir()
+
+    # Use relative path components that resolve within base
+    relative_path = base / "." / "subdir"
+
+    assert validate_safe_path(relative_path, base) is True
+
+
+def test_validate_safe_path_escapes_with_dotdot(tmp_path):
+    """Test validate_safe_path detects escape using .. components."""
+    base = tmp_path / "target"
+    base.mkdir()
+
+    # Try to escape to parent using ..
+    malicious_path = base / ".." / ".." / "etc" / "passwd"
+
+    with pytest.raises(PathTraversalError, match="Path traversal detected"):
+        validate_safe_path(malicious_path, base)
+
+
+def test_validate_safe_path_escapes_outside_base(tmp_path):
+    """Test validate_safe_path detects path completely outside base."""
+    base = tmp_path / "target"
+    base.mkdir()
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+
+    with pytest.raises(PathTraversalError, match="Path traversal detected"):
+        validate_safe_path(outside, base)
+
+
+def test_validate_safe_path_absolute_path_outside_base(tmp_path):
+    """Test validate_safe_path detects absolute path outside base."""
+    base = tmp_path / "target"
+    base.mkdir()
+
+    # Use system path like /etc
+    system_path = Path("/etc")
+
+    with pytest.raises(PathTraversalError, match="Path traversal detected"):
+        validate_safe_path(system_path, base)
+
+
+def test_validate_safe_path_symlink_within_base(tmp_path):
+    """Test validate_safe_path passes for symlink that stays within base."""
+    base = tmp_path
+    target_dir = base / "target"
+    target_dir.mkdir()
+
+    link_dir = base / "link"
+    link_dir.symlink_to(target_dir)
+
+    # Symlink resolves to target within base
+    assert validate_safe_path(link_dir, base) is True
+
+
+def test_validate_safe_path_symlink_escapes_base(tmp_path):
+    """Test validate_safe_path detects symlink that escapes base."""
+    base = tmp_path / "target"
+    base.mkdir()
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+
+    malicious_link = base / "escape_link"
+    malicious_link.symlink_to(outside)
+
+    # Symlink resolves to path outside base
+    with pytest.raises(PathTraversalError, match="Path traversal detected"):
+        validate_safe_path(malicious_link, base)
+
+
+def test_validate_safe_path_complex_dotdot_sequence(tmp_path):
+    """Test validate_safe_path with complex .. sequences."""
+    base = tmp_path / "target"
+    base.mkdir()
+
+    # Create nested directory
+    nested = base / "a" / "b" / "c"
+    nested.mkdir(parents=True)
+
+    # Path that uses .. but stays within base
+    safe_path = nested / ".." / ".."  # Resolves to base/a
+    assert validate_safe_path(safe_path, base) is True
+
+    # Path that uses .. to escape
+    unsafe_path = base / "a" / ".." / ".." / ".."  # Resolves outside base
+    with pytest.raises(PathTraversalError, match="Path traversal detected"):
+        validate_safe_path(unsafe_path, base)
+
+
+def test_validate_safe_path_nonexistent_path(tmp_path):
+    """Test validate_safe_path with non-existent path."""
+    base = tmp_path
+    nonexistent = base / "does" / "not" / "exist"
+
+    # Should still validate (path doesn't need to exist)
+    # The resolve() will make it absolute even if it doesn't exist
+    assert validate_safe_path(nonexistent, base) is True
+
+
+def test_validate_safe_path_nonexistent_escaping_path(tmp_path):
+    """Test validate_safe_path detects non-existent path that would escape."""
+    base = tmp_path / "target"
+    base.mkdir()
+
+    # Non-existent path that tries to escape
+    malicious = base / ".." / ".." / "etc" / "nonexistent"
+
+    with pytest.raises(PathTraversalError, match="Path traversal detected"):
+        validate_safe_path(malicious, base)
+
+
+def test_validate_safe_path_symlink_chain_within_base(tmp_path):
+    """Test validate_safe_path with chain of symlinks within base."""
+    base = tmp_path
+
+    # Create a chain: link1 -> link2 -> target
+    target = base / "target"
+    target.mkdir()
+
+    link2 = base / "link2"
+    link2.symlink_to(target)
+
+    link1 = base / "link1"
+    link1.symlink_to(link2)
+
+    # Chain resolves within base
+    assert validate_safe_path(link1, base) is True
+
+
+def test_validate_safe_path_mixed_case_infrastructure_path(tmp_path):
+    """Test validate_safe_path with typical infrastructure directory structure."""
+    # Simulate typical use case from deploy.py
+    target_dir = tmp_path / "target"
+    target_dir.mkdir()
+
+    infrastructure = target_dir / "infrastructure"
+    infrastructure.mkdir()
+
+    blue_tier = infrastructure / "blue"
+    blue_tier.mkdir()
+
+    # Validate blue tier is within target
+    assert validate_safe_path(blue_tier, target_dir) is True
+
+    # Validate blue tier is within infrastructure
+    assert validate_safe_path(blue_tier, infrastructure) is True
+
+
+def test_validate_safe_path_malicious_tier_name_attempt(tmp_path):
+    """Test validate_safe_path detects malicious tier name with path traversal."""
+    target_dir = tmp_path / "target"
+    target_dir.mkdir()
+
+    infrastructure = target_dir / "infrastructure"
+    infrastructure.mkdir()
+
+    # Simulate someone trying to use a malicious tier name like "../../../etc"
+    # Note: In practice, this is caught by tier name regex validation first
+    malicious_tier_path = infrastructure / ".." / ".." / ".." / "etc"
+
+    with pytest.raises(PathTraversalError, match="Path traversal detected"):
+        validate_safe_path(malicious_tier_path, target_dir)

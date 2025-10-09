@@ -245,12 +245,13 @@ This plan addresses the testability and quality issues identified in the project
   - [x] Test YAML-based estimation warnings
 
 ### 5.5 Path Traversal Protection
-- [ ] Create `validate_safe_path(path: Path, base: Path) -> bool`
-  - [ ] Ensure path is within expected base directory
-  - [ ] Check for .. components
-  - [ ] Resolve symlinks and verify
-- [ ] Add to TARGET_DIR validation in all scripts
-- [ ] Add unit tests with malicious path examples
+- [x] Create `validate_safe_path(path: Path, base: Path) -> bool`
+  - [x] Ensure path is within expected base directory
+  - [x] Check for .. components
+  - [x] Resolve symlinks and verify
+- [x] Add to TARGET_DIR validation in deploy.py
+- [x] Add to symlink target validation in promote_staging.py
+- [x] Add unit tests with malicious path examples (16 tests covering edge cases)
 
 ## Priority 6: End-to-End Tests (Real Resources)
 

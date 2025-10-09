@@ -16,9 +16,11 @@ from .command_runner import CommandRunnerProtocol, RealCommandRunner
 from .filesystem import FileSystemProtocol, RealFileSystem
 from .validators import (
     DiskSpaceError,
+    PathTraversalError,
     ValidationError,
     check_disk_space,
     validate_env_yaml,
+    validate_safe_path,
 )
 
 MAMBA = Path(sys.executable).with_name("mamba")  # mamba in same bin/ as python3
@@ -143,6 +145,14 @@ def setup_tier_path(target: Path, tier: str, filesystem: FileSystemProtocol) -> 
         critical(f"Target directory does not exist or is not a directory: {target}")
         sys.exit(3)
     tier_path = validate_tier_path(target, tier)
+
+    # Validate that tier path is safely within target directory
+    try:
+        validate_safe_path(tier_path, target)
+    except PathTraversalError as e:
+        critical(f"Path traversal detected: {e}")
+        sys.exit(3)
+
     info(f"{tier_path=}")
     if not filesystem.is_dir(tier_path):
         filesystem.mkdir(tier_path, parents=True, exist_ok=True)

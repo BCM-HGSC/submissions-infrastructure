@@ -44,6 +44,13 @@ scripts/promote_staging
 bash scripts/install-aws-tools.sh
 ```
 
+## Documentation
+
+Detailed documentation for key scripts is available in the `docs/` directory:
+- **docs/bootstrap.md**: Complete documentation for `scripts/bootstrap-engine`
+- **docs/deploy.md**: Documentation for `scripts/deploy` and the Python engine
+- **docs/promote_staging.md**: Blue/green promotion workflow documentation
+
 ## Architecture
 
 ### Directory Structure

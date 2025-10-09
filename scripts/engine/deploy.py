@@ -14,7 +14,12 @@ from rich.console import Console
 
 from .command_runner import CommandRunnerProtocol, RealCommandRunner
 from .filesystem import FileSystemProtocol, RealFileSystem
-from .validators import ValidationError, validate_env_yaml
+from .validators import (
+    DiskSpaceError,
+    ValidationError,
+    check_disk_space,
+    validate_env_yaml,
+)
 
 MAMBA = Path(sys.executable).with_name("mamba")  # mamba in same bin/ as python3
 CODE_ROOT_DIR = Path(__file__).parent.parent.parent
@@ -39,6 +44,22 @@ def deploy_tier(
     if command_runner is None:
         command_runner = RealCommandRunner()
 
+    # Check disk space before starting deployment
+    force = mode == "force"
+    worklist = list_conda_environment_defs()
+    try:
+        success, message = check_disk_space(
+            target, operation="deploy", env_yamls=worklist, force=force
+        )
+        if message:
+            if message.startswith(("WARNING:", "ERROR:")):
+                warning(message)
+            else:
+                info(message)
+    except DiskSpaceError as e:
+        critical(str(e))
+        sys.exit(4)
+
     check_mamba(filesystem)
     prod_path = setup_tier_path(target, "production", filesystem)
     tier_path = setup_tier_path(target, tier, filesystem)
@@ -58,7 +79,6 @@ def deploy_tier(
     )
     if deployer.keep:
         deployer.info()
-    worklist = list_conda_environment_defs()
     deployer.deploy_conda_environments(worklist)
     if deployer.dry_run:
         return

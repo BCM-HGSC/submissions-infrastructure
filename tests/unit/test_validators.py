@@ -7,11 +7,15 @@ import pytest
 
 from scripts.engine.validators import (
     BinaryNotFoundError,
+    DiskSpaceError,
     ValidationError,
     check_binary_available,
     check_bootstrap_binaries,
     check_deploy_binaries,
+    check_disk_space,
     check_required_binaries,
+    estimate_env_size_gb,
+    get_available_space_gb,
     validate_env_yaml,
 )
 
@@ -614,3 +618,235 @@ def test_check_deploy_binaries_missing_optional(mock_check):
     result = check_deploy_binaries(require_git=False)
     assert "git" in result
     assert result["git"] is None
+
+
+# Disk space checking tests
+
+
+@patch("os.statvfs")
+def test_get_available_space_gb_directory_exists(mock_statvfs, tmp_path):
+    """Test get_available_space_gb for an existing directory."""
+    # Mock statvfs to return 100 GB available
+    # f_bavail = available blocks, f_frsize = fragment size
+    # For 100 GB: f_bavail * f_frsize = 100 * 1024^3
+    # If f_frsize = 1024, then f_bavail = 100 * 1024^2
+    mock_stat = type(
+        "MockStatVFS", (), {"f_bavail": 100 * 1024 * 1024, "f_frsize": 1024}
+    )()  # 100 GB
+    mock_statvfs.return_value = mock_stat
+
+    available = get_available_space_gb(tmp_path)
+    assert available == pytest.approx(100.0, rel=0.01)
+
+
+@patch("os.statvfs")
+def test_get_available_space_gb_directory_not_exists(mock_statvfs, tmp_path):
+    """Test get_available_space_gb for non-existent directory (checks parent)."""
+    # Mock statvfs to return 50 GB available
+    # For 50 GB: f_bavail * f_frsize = 50 * 1024^3
+    # If f_frsize = 1024, then f_bavail = 50 * 1024^2
+    mock_stat = type(
+        "MockStatVFS", (), {"f_bavail": 50 * 1024 * 1024, "f_frsize": 1024}
+    )()  # 50 GB
+    mock_statvfs.return_value = mock_stat
+
+    nonexistent = tmp_path / "nonexistent"
+    available = get_available_space_gb(nonexistent)
+    assert available == pytest.approx(50.0, rel=0.01)
+
+
+def test_estimate_env_size_gb_simple_env(tmp_path):
+    """Test estimate_env_size_gb for a simple environment."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """channels:
+  - conda-forge
+dependencies:
+  - python
+  - pytest
+"""
+    )
+    # 2 packages * 50MB * 1.5 multiplier / 1024 = ~0.146 GB
+    estimated = estimate_env_size_gb(yaml_file)
+    assert estimated == pytest.approx(0.146, rel=0.01)
+
+
+def test_estimate_env_size_gb_with_pip_deps(tmp_path):
+    """Test estimate_env_size_gb for environment with pip dependencies."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """channels:
+  - conda-forge
+dependencies:
+  - python
+  - pip
+  - pip:
+    - cogapp
+    - xkcdpass
+"""
+    )
+    # 3 deps (python, pip, dict) + 2 pip packages = 5 total * 50MB * 1.5 / 1024 = ~0.366 GB
+    estimated = estimate_env_size_gb(yaml_file)
+    assert estimated == pytest.approx(0.366, rel=0.01)
+
+
+def test_estimate_env_size_gb_large_env(tmp_path):
+    """Test estimate_env_size_gb for a large environment."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_content = """channels:
+  - conda-forge
+dependencies:
+"""
+    # Add 70 packages (like python.yaml)
+    for i in range(70):
+        yaml_content += f"  - package{i}\n"
+
+    yaml_file.write_text(yaml_content)
+    # 70 packages * 50MB * 1.5 / 1024 = ~5.127 GB
+    estimated = estimate_env_size_gb(yaml_file)
+    assert estimated == pytest.approx(5.127, rel=0.01)
+
+
+def test_estimate_env_size_gb_invalid_yaml(tmp_path):
+    """Test estimate_env_size_gb returns conservative estimate for invalid YAML."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text("invalid: [unclosed")
+
+    estimated = estimate_env_size_gb(yaml_file)
+    assert estimated == 2.0  # Conservative fallback
+
+
+def test_estimate_env_size_gb_missing_file(tmp_path):
+    """Test estimate_env_size_gb returns conservative estimate for missing file."""
+    yaml_file = tmp_path / "nonexistent.yaml"
+
+    estimated = estimate_env_size_gb(yaml_file)
+    assert estimated == 2.0  # Conservative fallback
+
+
+@patch("scripts.engine.validators.get_available_space_gb")
+def test_check_disk_space_plenty_of_space(mock_get_space, tmp_path):
+    """Test check_disk_space when plenty of space is available."""
+    mock_get_space.return_value = 100.0  # 100 GB available
+
+    success, message = check_disk_space(tmp_path, operation="deploy")
+    assert success is True
+    assert message == ""  # No warning when plenty of space
+
+
+@patch("scripts.engine.validators.get_available_space_gb")
+def test_check_disk_space_below_recommended(mock_get_space, tmp_path):
+    """Test check_disk_space when below recommended threshold."""
+    mock_get_space.return_value = 20.0  # 20 GB available (below 30 GB recommended)
+
+    success, message = check_disk_space(tmp_path, operation="deploy")
+    assert success is True
+    assert "INFO:" in message
+    assert "20.0GB available" in message
+    assert "30GB recommended" in message
+
+
+@patch("scripts.engine.validators.get_available_space_gb")
+def test_check_disk_space_below_minimum_no_force(mock_get_space, tmp_path):
+    """Test check_disk_space raises error when below minimum without force."""
+    mock_get_space.return_value = 10.0  # 10 GB available (below 15 GB minimum)
+
+    with pytest.raises(DiskSpaceError) as exc_info:
+        check_disk_space(tmp_path, operation="deploy", force=False)
+
+    error_msg = str(exc_info.value)
+    assert "Insufficient disk space" in error_msg
+    assert "10.0GB" in error_msg
+    assert "15GB minimum" in error_msg
+    assert "Use --force to override" in error_msg
+
+
+@patch("scripts.engine.validators.get_available_space_gb")
+def test_check_disk_space_below_minimum_with_force(mock_get_space, tmp_path):
+    """Test check_disk_space allows proceeding when below minimum with force."""
+    mock_get_space.return_value = 10.0  # 10 GB available (below 15 GB minimum)
+
+    success, message = check_disk_space(tmp_path, operation="deploy", force=True)
+    assert success is True
+    assert "WARNING: Proceeding anyway due to --force flag" in message
+    assert "10.0GB" in message
+
+
+@patch("scripts.engine.validators.get_available_space_gb")
+def test_check_disk_space_bootstrap_operation(mock_get_space, tmp_path):
+    """Test check_disk_space uses correct thresholds for bootstrap operation."""
+    mock_get_space.return_value = 7.0  # 7 GB available
+
+    # Should pass for bootstrap (minimum 5 GB)
+    success, message = check_disk_space(tmp_path, operation="bootstrap")
+    assert success is True
+    assert "INFO:" in message
+
+    # Should fail for deploy (minimum 15 GB)
+    with pytest.raises(DiskSpaceError):
+        check_disk_space(tmp_path, operation="deploy")
+
+
+@patch("scripts.engine.validators.get_available_space_gb")
+def test_check_disk_space_with_env_yamls(mock_get_space, tmp_path):
+    """Test check_disk_space with environment YAML estimation."""
+    mock_get_space.return_value = 18.0  # 18 GB available
+
+    # Create test YAML files
+    yaml1 = tmp_path / "env1.yaml"
+    yaml1.write_text(
+        """channels:
+  - conda-forge
+dependencies:
+  - python
+  - pytest
+"""
+    )
+
+    yaml2 = tmp_path / "env2.yaml"
+    yaml2.write_text(
+        """channels:
+  - conda-forge
+dependencies:
+  - numpy
+  - pandas
+  - scipy
+"""
+    )
+
+    # With YAMLs, estimate will be ~(2 + 3) * 50MB * 1.5 / 1024 + 10 buffer = ~10.36 GB
+    # 18 GB available > 15 GB minimum, but might trigger estimated need warning
+    success, message = check_disk_space(
+        tmp_path, operation="deploy", env_yamls=[yaml1, yaml2]
+    )
+    assert success is True
+    # Should pass since 18 GB > 15 GB minimum and > estimated need
+
+
+@patch("scripts.engine.validators.get_available_space_gb")
+def test_check_disk_space_estimated_need_warning(mock_get_space, tmp_path):
+    """Test check_disk_space warns when available < estimated need."""
+    mock_get_space.return_value = 16.0  # 16 GB available (above minimum but tight)
+
+    # Create large environment YAMLs that estimate to >16 GB
+    yaml_files = []
+    for i in range(5):
+        yaml = tmp_path / f"env{i}.yaml"
+        yaml_content = """channels:
+  - conda-forge
+dependencies:
+"""
+        # Each with 20 packages
+        for j in range(20):
+            yaml_content += f"  - package{j}\n"
+        yaml.write_text(yaml_content)
+        yaml_files.append(yaml)
+
+    # 5 envs * 20 packages * 50MB * 1.5 / 1024 + 10 buffer = ~17.3 GB estimated
+    success, message = check_disk_space(
+        tmp_path, operation="deploy", env_yamls=yaml_files
+    )
+    assert success is True
+    assert "WARNING: Disk space may be tight" in message
+    assert "16.0GB" in message
+    assert "Estimated need" in message

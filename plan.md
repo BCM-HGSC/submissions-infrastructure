@@ -222,11 +222,27 @@ This plan addresses the testability and quality issues identified in the project
 - [x] Add unit tests for edge cases
 
 ### 5.4 Disk Space Checks
-- [ ] Create `check_disk_space(path: Path, required_gb: int) -> bool`
-- [ ] Add to bootstrap before creating directories
-- [ ] Add to deploy before installing environments
-- [ ] Estimate required space based on environment definitions
-- [ ] Warn user if space is insufficient
+- [x] Create `check_disk_space(path: Path, operation: str, env_yamls: list[Path] | None, force: bool) -> tuple[bool, str]`
+  - [x] Hybrid approach with static thresholds and dynamic YAML-based estimation
+  - [x] Bootstrap: 5 GB minimum, 10 GB recommended
+  - [x] Deploy: 15 GB minimum, 30 GB recommended
+  - [x] Package estimation: ~50MB per package with 1.5x multiplier for transitive deps
+- [x] Create `get_available_space_gb(path: Path) -> float` helper function
+- [x] Create `estimate_env_size_gb(yaml_path: Path) -> float` helper function
+- [x] Add to bootstrap-engine before creating directories
+  - [x] Added `check_disk_space()` bash function
+  - [x] Added `--force` flag to bypass checks
+  - [x] Call check early in main() workflow
+- [x] Add to deploy.py before installing environments
+  - [x] Check disk space with YAML-based estimation
+  - [x] Respect `--force` mode parameter
+  - [x] Display warnings/info based on available space
+- [x] Add comprehensive unit tests in `tests/unit/test_validators.py`
+  - [x] Test get_available_space_gb() with mocked os.statvfs
+  - [x] Test estimate_env_size_gb() for various environment sizes
+  - [x] Test check_disk_space() for all scenarios (plenty, below recommended, below minimum, force mode)
+  - [x] Test bootstrap vs deploy operation thresholds
+  - [x] Test YAML-based estimation warnings
 
 ### 5.5 Path Traversal Protection
 - [ ] Create `validate_safe_path(path: Path, base: Path) -> bool`

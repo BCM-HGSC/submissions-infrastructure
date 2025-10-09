@@ -2,6 +2,7 @@
 Validation functions for environment definitions and configuration files.
 """
 
+import os
 from pathlib import Path
 import shutil
 from typing import Any
@@ -337,6 +338,153 @@ def check_deploy_binaries(require_git: bool = True) -> dict[str, Path | None]:
         binaries=binaries,
         optional=optional,
     )
+
+
+class DiskSpaceError(Exception):
+    """Exception raised when insufficient disk space is available."""
+
+
+def get_available_space_gb(path: Path) -> float:
+    """
+    Get available disk space in gigabytes for a given path.
+
+    Args:
+        path: Path to check disk space for (will check parent if path doesn't exist)
+
+    Returns:
+        Available space in GB as a float
+    """
+    # Use the directory if it exists, otherwise use parent directory
+    check_path = path if path.is_dir() else path.parent
+
+    # Ensure the path exists
+    if not check_path.exists():
+        check_path = check_path.parent
+
+    # Get filesystem statistics
+    stat = os.statvfs(check_path)
+    # Calculate available space: available blocks * block size / 1GB
+    available_bytes = stat.f_bavail * stat.f_frsize
+    return available_bytes / (1024**3)
+
+
+def estimate_env_size_gb(yaml_path: Path) -> float:
+    """
+    Estimate conda environment size based on package count.
+
+    This is a heuristic estimate. Actual size depends on:
+    - Transitive dependencies (typically 3-5x direct deps)
+    - Package sizes (vary greatly)
+    - Platform-specific binaries
+
+    Args:
+        yaml_path: Path to the environment YAML file
+
+    Returns:
+        Estimated size in GB
+    """
+    try:
+        with yaml_path.open("r") as f:
+            env_def = yaml.safe_load(f)
+    except (OSError, yaml.YAMLError):
+        # If we can't read the file, return a conservative estimate
+        return 2.0
+
+    # Count direct dependencies
+    pkg_count = len(env_def.get("dependencies", []))
+
+    # Account for pip dependencies
+    for dep in env_def.get("dependencies", []):
+        if isinstance(dep, dict) and "pip" in dep:
+            pkg_count += len(dep["pip"])
+
+    # Rough estimate: 50MB per package (includes transitive deps)
+    estimated_gb = (pkg_count * 50) / 1024  # MB to GB
+
+    # Add 50% buffer for transitive dependencies
+    return estimated_gb * 1.5
+
+
+def check_disk_space(
+    path: Path,
+    operation: str = "deploy",
+    env_yamls: list[Path] | None = None,
+    force: bool = False,
+) -> tuple[bool, str]:
+    """
+    Check available disk space using hybrid static/dynamic estimation.
+
+    Uses conservative static thresholds combined with YAML-based estimation
+    to provide both safety and helpful feedback.
+
+    Thresholds based on empirical data (~21GB full system):
+    - bootstrap: 5 GB minimum
+    - deploy: 15 GB minimum, 30 GB recommended
+
+    Args:
+        path: Path to check disk space for
+        operation: Type of operation ('bootstrap' or 'deploy')
+        env_yamls: Optional list of YAML files to estimate size from
+        force: If True, bypass hard minimum check (still warn)
+
+    Returns:
+        Tuple of (success: bool, message: str)
+        - success is False only if below hard minimum and not force
+        - message is empty if plenty of space, otherwise contains warning/error
+
+    Raises:
+        DiskSpaceError: If insufficient space and force=False
+    """
+    # Get actual available space
+    available_gb = get_available_space_gb(path)
+
+    # Static thresholds
+    thresholds = {
+        "bootstrap": (5, 10),  # (minimum, recommended)
+        "deploy": (15, 30),
+    }
+
+    minimum_gb, recommended_gb = thresholds.get(operation, (10, 20))
+
+    # Dynamic estimate based on YAMLs
+    estimated_need = 0.0
+    if env_yamls:
+        for yaml_path in env_yamls:
+            estimated_need += estimate_env_size_gb(yaml_path)
+        # Add buffer for cache and overhead
+        estimated_need += 10
+
+    # Determine severity
+    if available_gb < minimum_gb:
+        error_msg = (
+            f"Insufficient disk space for {operation}\n"
+            f"Available: {available_gb:.1f}GB\n"
+            f"Required: {minimum_gb}GB minimum\n"
+        )
+        if force:
+            error_msg += "WARNING: Proceeding anyway due to --force flag"
+            return True, error_msg
+        error_msg += f"{operation.capitalize()} requires at least {minimum_gb}GB of free space.\nUse --force to override."
+        raise DiskSpaceError(error_msg)
+
+    if env_yamls and available_gb < estimated_need:
+        warning_msg = (
+            f"WARNING: Disk space may be tight for {operation}\n"
+            f"Available: {available_gb:.1f}GB\n"
+            f"Estimated need: ~{estimated_need:.1f}GB\n"
+            f"Operation may fail if estimate is accurate."
+        )
+        return True, warning_msg
+
+    if available_gb < recommended_gb:
+        info_msg = (
+            f"INFO: {available_gb:.1f}GB available. "
+            f"{recommended_gb}GB recommended for comfortable {operation}."
+        )
+        return True, info_msg
+
+    # Plenty of space
+    return True, ""
 
 
 class SymlinkValidationError(Exception):

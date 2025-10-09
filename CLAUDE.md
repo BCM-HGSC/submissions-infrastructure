@@ -44,6 +44,13 @@ scripts/promote_staging
 bash scripts/install-aws-tools.sh
 ```
 
+## Documentation
+
+Detailed documentation for key scripts is available in the `docs/` directory:
+- **docs/bootstrap.md**: Complete documentation for `scripts/bootstrap-engine`
+- **docs/deploy.md**: Documentation for `scripts/deploy` and the Python engine
+- **docs/promote_staging.md**: Blue/green promotion workflow documentation
+
 ## Architecture
 
 ### Directory Structure
@@ -147,7 +154,7 @@ pytest --cov=scripts/engine --cov-report=html
 - Fast, isolated tests using mocks
 - No external dependencies or network calls
 - Test individual functions and error conditions
-- 190 tests covering argument parsing, path validation, blue/green logic, error handling, environment definitions, YAML validation, binary availability checks, disk space checks, symlink validation, and path traversal protection
+- Comprehensive test coverage including argument parsing, path validation, blue/green logic, error handling, environment definitions, YAML validation, binary availability checks, disk space checks, symlink validation, and path traversal protection
 
 **Integration Tests** (`tests/integration/`):
 - Test complete workflows with actual script execution

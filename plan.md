@@ -274,14 +274,14 @@ This plan addresses the testability and quality issues identified in the project
   - [x] Keep existing integration tests in `tests/integration/test_deploy.py` (uses mocks)
 
 ### 6.2 Full Workflow with Real Resources
-- [ ] Create `tests/e2e/test_real_workflow.py` (incorporates deferred items from 4.4 and 4.5)
-  - [ ] Bootstrap → Deploy staging → Promote → Deploy new staging
-  - [ ] Use real YAML environment definitions
-  - [ ] Use real git commands for metadata
-  - [ ] Test complete blue/green rotation with all environments
-  - [ ] Test engine rotation (bootstrap-engine twice)
-  - [ ] Verify all metadata tracking with real git info
-  - [ ] May take 5-10 minutes to run (install all real environments)
+- [x] Create `tests/e2e/test_real_workflow.py` (incorporates deferred items from 4.4 and 4.5)
+  - [x] Bootstrap → Deploy staging → Promote → Deploy new staging
+  - [x] Use real YAML environment definitions
+  - [x] Use real git commands for metadata
+  - [x] Test complete blue/green rotation with all environments
+  - [x] Test engine rotation (bootstrap-engine twice)
+  - [x] Verify all metadata tracking with real git info
+  - [x] May take 5-10 minutes to run (install all real environments)
 
 ### 6.3 Offline Mode Testing
 - [ ] Create `tests/e2e/test_offline_mode.py` (deferred from 4.4)

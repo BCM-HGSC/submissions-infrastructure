@@ -147,7 +147,7 @@ pytest --cov=scripts/engine --cov-report=html
 - Fast, isolated tests using mocks
 - No external dependencies or network calls
 - Test individual functions and error conditions
-- 144 tests covering argument parsing, path validation, blue/green logic, error handling, environment definitions, YAML validation, and binary availability checks
+- 161 tests covering argument parsing, path validation, blue/green logic, error handling, environment definitions, YAML validation, and binary availability checks
 
 **Integration Tests** (`tests/integration/`):
 - Test complete workflows with actual script execution

@@ -30,6 +30,7 @@ python_functions = ["test_*"]
 # Markers
 markers = [
     "integration: Integration tests requiring --run-integration flag",
+    "e2e: End-to-end tests requiring real mamba and --run-e2e flag",
     "slow: Slow-running tests",
 ]
 

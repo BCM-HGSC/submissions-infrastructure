@@ -256,18 +256,22 @@ This plan addresses the testability and quality issues identified in the project
 ## Priority 6: End-to-End Tests (Real Resources)
 
 ### 6.1 Full Deploy with Real YAML Files
-- [ ] Refactor `tests/integration/test_deploy.py` to `tests/e2e/test_real_deploy.py`
-  - [ ] Update tests to use `@pytest.mark.e2e` marker instead of `@pytest.mark.integration`
-  - [ ] Require `--run-e2e` flag instead of `--run-integration`
-  - [ ] Test deploy to staging tier (existing test)
-  - [ ] Verify conda environments created (existing test)
-  - [ ] Verify bin/ and etc/ directories copied (existing test)
-  - [ ] Verify meta/ git info stored - use real git commands, not mocked (update existing test)
-  - [ ] Test --dry-run mode (existing test)
-  - [ ] Test --keep mode (existing test)
-  - [ ] Test deploy using actual YAML files from `resources/defs/`
-  - [ ] Verify all production environment definitions work
-  - [ ] Test platform-specific environments (linux.yaml, mac.yaml)
+- [x] Refactor production code to support environment subsets
+  - [x] Add `env_yamls` parameter to `deploy_tier()` function
+  - [x] Add unit tests for env_yamls parameter
+- [x] Create `tests/e2e/test_real_deploy.py` with E2E tests
+  - [x] Add `@pytest.mark.e2e` marker and `--run-e2e` flag requirement
+  - [x] Add session-scoped mamba availability check (pytest.exit if missing)
+  - [x] Test quick deploy with subset (excludes python.yaml for speed)
+  - [x] Test comprehensive deploy with all environments including python.yaml
+  - [x] Test deploy to staging tier
+  - [x] Verify conda environments created
+  - [x] Verify bin/ and etc/ directories copied
+  - [x] Verify meta/ git info stored with real git commands (not mocked)
+  - [x] Test --dry-run mode
+  - [x] Test --keep mode
+  - [x] Test platform-specific environments (linux.yaml, mac.yaml) with skip markers
+  - [x] Keep existing integration tests in `tests/integration/test_deploy.py` (uses mocks)
 
 ### 6.2 Full Workflow with Real Resources
 - [ ] Create `tests/e2e/test_real_workflow.py` (incorporates deferred items from 4.4 and 4.5)
@@ -343,6 +347,13 @@ This plan addresses the testability and quality issues identified in the project
 - [x] Test dry-run mode actually makes no changes
 
 ## Additional Improvements (Lower Priority)
+
+### AI.0 Test Timeout Configuration
+- [ ] Add explicit timeouts for E2E tests in pytest configuration
+  - [ ] Quick E2E test (subset): consider 5-10 minute timeout
+  - [ ] Comprehensive E2E test (all envs): consider 15-20 minute timeout
+  - [ ] Add timeout configuration to pyproject.toml for e2e marker
+  - [ ] Document timeout expectations in test docstrings
 
 ### AI.1 Logging Improvements
 - [ ] Standardize logging across bash and Python

@@ -40,6 +40,7 @@ def deploy_tier(
     run_function=None,  # Deprecated, use command_runner  # noqa: ARG001
     filesystem: FileSystemProtocol | None = None,
     command_runner: CommandRunnerProtocol | None = None,
+    env_yamls: list[Path] | None = None,
 ) -> None:
     if filesystem is None:
         filesystem = RealFileSystem()
@@ -48,7 +49,7 @@ def deploy_tier(
 
     # Check disk space before starting deployment
     force = mode == "force"
-    worklist = list_conda_environment_defs()
+    worklist = env_yamls if env_yamls is not None else list_conda_environment_defs()
     try:
         success, message = check_disk_space(
             target, operation="deploy", env_yamls=worklist, force=force

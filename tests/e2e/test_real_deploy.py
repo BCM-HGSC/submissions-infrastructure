@@ -111,6 +111,9 @@ def test_quick_deploy_subset(e2e_bootstrap_env):
 
     assert len(env_yamls) >= 2, "Should have at least 2 environments for quick test"
 
+    # Use the micromamba from the bootstrapped environment
+    micromamba_path = e2e_bootstrap_env / "engine_home" / "micromamba"
+
     # Deploy to staging tier with subset
     deploy_tier(
         target=e2e_bootstrap_env,
@@ -120,6 +123,7 @@ def test_quick_deploy_subset(e2e_bootstrap_env):
         filesystem=filesystem,
         command_runner=command_runner,
         env_yamls=env_yamls,
+        mamba_path=micromamba_path,
     )
 
     # Verify directory structure
@@ -173,6 +177,9 @@ def test_comprehensive_deploy_all_environments(e2e_bootstrap_env):
     env_names = [env.stem for env in env_yamls]
     assert "python" in env_names, "python.yaml should be included in comprehensive test"
 
+    # Use the micromamba from the bootstrapped environment
+    micromamba_path = e2e_bootstrap_env / "engine_home" / "micromamba"
+
     # Deploy to staging tier with all environments
     deploy_tier(
         target=e2e_bootstrap_env,
@@ -182,6 +189,7 @@ def test_comprehensive_deploy_all_environments(e2e_bootstrap_env):
         filesystem=filesystem,
         command_runner=command_runner,
         env_yamls=env_yamls,
+        mamba_path=micromamba_path,
     )
 
     # Verify all environments were created
@@ -208,6 +216,9 @@ def test_deploy_mac_environment(e2e_bootstrap_env):
     mac_yaml = DEFS_DIR / "mac" / "mac.yaml"
     assert mac_yaml.exists(), "mac.yaml should exist"
 
+    # Use the micromamba from the bootstrapped environment
+    micromamba_path = e2e_bootstrap_env / "engine_home" / "micromamba"
+
     deploy_tier(
         target=e2e_bootstrap_env,
         tier="staging",
@@ -216,6 +227,7 @@ def test_deploy_mac_environment(e2e_bootstrap_env):
         filesystem=filesystem,
         command_runner=command_runner,
         env_yamls=[mac_yaml],
+        mamba_path=micromamba_path,
     )
 
     staging_dir = e2e_bootstrap_env / "infrastructure" / "staging"
@@ -235,6 +247,9 @@ def test_deploy_linux_environment(e2e_bootstrap_env):
     linux_yaml = DEFS_DIR / "linux" / "linux.yaml"
     assert linux_yaml.exists(), "linux.yaml should exist"
 
+    # Use the micromamba from the bootstrapped environment
+    micromamba_path = e2e_bootstrap_env / "engine_home" / "micromamba"
+
     deploy_tier(
         target=e2e_bootstrap_env,
         tier="staging",
@@ -243,6 +258,7 @@ def test_deploy_linux_environment(e2e_bootstrap_env):
         filesystem=filesystem,
         command_runner=command_runner,
         env_yamls=[linux_yaml],
+        mamba_path=micromamba_path,
     )
 
     staging_dir = e2e_bootstrap_env / "infrastructure" / "staging"
@@ -260,6 +276,9 @@ def test_deploy_dry_run_mode(e2e_bootstrap_env):
 
     env_yamls = get_quick_test_envs()
 
+    # Use the micromamba from the bootstrapped environment
+    micromamba_path = e2e_bootstrap_env / "engine_home" / "micromamba"
+
     deploy_tier(
         target=e2e_bootstrap_env,
         tier="staging",
@@ -268,6 +287,7 @@ def test_deploy_dry_run_mode(e2e_bootstrap_env):
         filesystem=filesystem,
         command_runner=command_runner,
         env_yamls=env_yamls,
+        mamba_path=micromamba_path,
     )
 
     staging_dir = e2e_bootstrap_env / "infrastructure" / "staging"
@@ -289,6 +309,9 @@ def test_deploy_keep_mode_preserves_environments(e2e_bootstrap_env):
 
     env_yamls = get_quick_test_envs()
 
+    # Use the micromamba from the bootstrapped environment
+    micromamba_path = e2e_bootstrap_env / "engine_home" / "micromamba"
+
     # First deployment
     deploy_tier(
         target=e2e_bootstrap_env,
@@ -298,6 +321,7 @@ def test_deploy_keep_mode_preserves_environments(e2e_bootstrap_env):
         filesystem=filesystem,
         command_runner=command_runner,
         env_yamls=env_yamls,
+        mamba_path=micromamba_path,
     )
 
     staging_dir = e2e_bootstrap_env / "infrastructure" / "staging"
@@ -319,6 +343,7 @@ def test_deploy_keep_mode_preserves_environments(e2e_bootstrap_env):
         filesystem=filesystem,
         command_runner=command_runner,
         env_yamls=env_yamls,
+        mamba_path=micromamba_path,
     )
 
     # Verify environments were not recreated (same mtime)
@@ -339,6 +364,9 @@ def test_deploy_stores_real_git_metadata(e2e_bootstrap_env):
 
     env_yamls = get_quick_test_envs()
 
+    # Use the micromamba from the bootstrapped environment
+    micromamba_path = e2e_bootstrap_env / "engine_home" / "micromamba"
+
     deploy_tier(
         target=e2e_bootstrap_env,
         tier="staging",
@@ -347,6 +375,7 @@ def test_deploy_stores_real_git_metadata(e2e_bootstrap_env):
         filesystem=filesystem,
         command_runner=command_runner,
         env_yamls=env_yamls,
+        mamba_path=micromamba_path,
     )
 
     staging_dir = e2e_bootstrap_env / "infrastructure" / "staging"

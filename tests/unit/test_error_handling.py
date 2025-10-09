@@ -19,7 +19,7 @@ def test_check_mamba_missing():
     # Don't add MAMBA to files, so it doesn't exist
 
     with pytest.raises(SystemExit) as exc_info:
-        check_mamba(filesystem)
+        check_mamba(filesystem, MAMBA)
 
     assert exc_info.value.code == 2
 
@@ -30,7 +30,7 @@ def test_check_mamba_exists():
     filesystem.files.add(MAMBA)
 
     # Should not raise
-    check_mamba(filesystem)
+    check_mamba(filesystem, MAMBA)
 
 
 def test_deploy_tier_missing_mamba(tmp_path):

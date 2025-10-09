@@ -9,6 +9,13 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 1. Clone or download the software.
 2. Run commands in the scripts directory to create and update infrastructure.
 
+## Documentation
+
+Comprehensive documentation for all core scripts is available in the `docs/` directory. See [docs/README.md](docs/README.md) for:
+- Detailed script documentation (bootstrap, deploy, promote_staging)
+- Quick start guides and decision trees
+- Common workflow examples
+
 ## Layout
 
 After running these commands:

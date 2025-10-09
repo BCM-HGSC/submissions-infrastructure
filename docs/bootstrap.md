@@ -82,7 +82,7 @@ The script provides helpful error messages for missing binaries with platform-sp
 ## Integration
 
 This script is typically called during initial infrastructure setup:
-- By `scripts/bootstrap` to create the complete infrastructure
+- By `scripts/bootstrap` (wrapper that bootstraps both engine and infrastructure tiers)
 - Manually to update or rotate the engine
 
 The script uses a sanitized environment via `scripts/sanitize-command` to ensure reproducibility.

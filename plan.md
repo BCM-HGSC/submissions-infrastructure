@@ -165,6 +165,8 @@ This plan addresses the testability and quality issues identified in the project
 
 **NOTE**: Tests in `tests/integration/test_deploy.py` require a real mamba installation due to the global `MAMBA` variable pointing to `sys.executable` location. These tests have been moved to Priority 6 (E2E Tests with Real Resources). To properly support integration testing without real mamba, the `mamba_path` parameter needs to be injected as a dependency (deferred from Priority 2.3).
 
+**DEPENDENCY ISSUE**: The current `tests/integration/test_deploy.py` imports `scripts.engine.deploy` directly, requiring rich, pyyaml, etc. in the test runner's Python environment. This creates fragile dependencies on the user's active environment. See Priority 7 for the plan to refactor these tests to use subprocess calls instead.
+
 ### 4.3 Test Promote Staging Workflow
 - [x] Create `tests/integration/test_promote.py`
   - [x] Test promotion from blue to green
@@ -274,7 +276,7 @@ This plan addresses the testability and quality issues identified in the project
   - [x] Keep existing integration tests in `tests/integration/test_deploy.py` (uses mocks)
 
 ### 6.2 Full Workflow with Real Resources
-- [x] Create `tests/e2e/test_real_workflow.py` (incorporates deferred items from 4.4 and 4.5)
+- [x] Create `tests/e2e/test_real_workflow.py` (incorporates deferred items from 4.4 and 4.5) **(completed but may need revision after Priority 7)**
   - [x] Bootstrap → Deploy staging → Promote → Deploy new staging
   - [x] Use real YAML environment definitions
   - [x] Use real git commands for metadata
@@ -283,13 +285,71 @@ This plan addresses the testability and quality issues identified in the project
   - [x] Verify all metadata tracking with real git info
   - [x] May take 5-10 minutes to run (install all real environments)
 
-### 6.3 Offline Mode Testing
+### 6.3 Offline Mode Testing **(deferred until Priority 7 complete)**
 - [ ] Create `tests/e2e/test_offline_mode.py` (deferred from 4.4)
   - [ ] Test bootstrap with --offline
   - [ ] Test deploy with --offline
   - [ ] Verify no network calls attempted
   - [ ] Test with populated conda_package_cache
   - [ ] Requires pre-populating package cache before running test
+
+## Priority 7: Fix Integration Test Dependencies
+
+**Background**: The current `tests/integration/test_deploy.py` imports `scripts.engine.deploy` directly, which requires rich, pyyaml, and other engine dependencies to be present in the test runner's Python environment. This creates a fragile coupling where tests break when the user's active Python environment changes. E2E tests correctly avoid this by using subprocess calls to the bootstrap and deploy scripts, which manage their own dependencies within the bootstrapped engine environment.
+
+**Goal**: Refactor integration tests to use subprocess calls instead of direct imports, making them independent of the test runner's environment and more aligned with the project's architecture.
+
+### 7.1 Refactor Integration Tests to Use Subprocess
+- [ ] Modify `tests/integration/test_deploy.py` to call `scripts/deploy` via subprocess
+  - [ ] Replace `from scripts.engine.deploy import deploy_tier` with subprocess calls
+  - [ ] Remove imports of `scripts.engine.filesystem`, `scripts.engine.command_runner`
+  - [ ] Keep `mock_git_command_runner` pattern if possible via environment or wrapper script
+- [ ] Update test verification to inspect filesystem instead of in-process checks
+  - [ ] Verify directory structure by checking paths exist
+  - [ ] Read metadata files to verify git info stored
+  - [ ] Check conda environment directories created
+- [ ] Ensure all existing test cases still work
+  - [ ] `test_deploy_to_staging_creates_structure`
+  - [ ] `test_deploy_creates_conda_environments`
+  - [ ] `test_deploy_copies_bin_directory`
+  - [ ] `test_deploy_copies_etc_directory`
+  - [ ] `test_deploy_stores_git_metadata`
+  - [ ] `test_deploy_dry_run_mode`
+  - [ ] `test_deploy_keep_mode`
+- [ ] Update test documentation to reflect subprocess approach
+- [ ] Verify tests pass without engine dependencies in test runner environment
+
+### 7.2 Consider In-Process Test Preservation (Optional)
+- [ ] Evaluate whether current import-based tests provide unique value
+  - [ ] Do they catch different bugs than subprocess tests?
+  - [ ] Are they significantly faster for development iteration?
+  - [ ] Do they enable better debugging of internal state?
+- [ ] If yes, preserve import-based tests in separate file
+  - [ ] Create `tests/integration/test_deploy_inprocess.py`
+  - [ ] Move current import-based tests there
+  - [ ] Add pytest markers to skip if dependencies unavailable
+  - [ ] Add `@pytest.mark.requires_engine_deps` marker
+- [ ] Document that in-process tests require engine environment
+  - [ ] Update test docstrings
+  - [ ] Add README or comment explaining when to use each approach
+- [ ] Note: This step may be skipped if subprocess approach is sufficient
+
+### 7.3 Future: Evaluate Testing Strategy
+- [ ] After 7.1 complete, assess testing approach effectiveness
+  - [ ] Compare subprocess vs in-process test execution time
+  - [ ] Evaluate debugging experience with subprocess tests
+  - [ ] Check for any gaps in test coverage
+- [ ] Document trade-offs for future reference
+  - [ ] In-process: fast, easy debug, but fragile dependencies
+  - [ ] Subprocess: isolated, realistic, but slower and harder to debug
+- [ ] Make decision on long-term testing strategy
+  - [ ] Keep only subprocess tests (simpler, more robust)?
+  - [ ] Keep both approaches (flexibility, but more maintenance)?
+  - [ ] Investigate hybrid approach (subprocess with debug hooks)?
+- [ ] Update CLAUDE.md with testing strategy documentation
+- [ ] Consider whether to remove import-based tests entirely
+
+**Outcome**: Integration tests become independent of test runner's Python environment, more robust, and better aligned with how the scripts are actually used in production.
 
 ## Quick Wins (Can be done immediately)
 

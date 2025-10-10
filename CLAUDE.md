@@ -111,6 +111,13 @@ When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment vari
 - Dependency injection in `deploy_tier()` and `MambaDeployer` for testing
 - Pure functions separated from side effects (e.g., `validate_tier_path()`, `validate_color()`)
 
+**Mamba Detection**:
+The deployment engine detects mamba using one of two approaches:
+1. **PATH-based detection**: Uses `shutil.which("mamba")` to find mamba in the system PATH (preferred for production and testing)
+2. **Engine-relative path**: Uses `$IAC_PARENT/engine_home/engine/condabin/mamba` when running from a bootstrapped engine environment
+
+The PATH-based approach is the default in `scripts/engine/deploy.py` and allows for flexible testing scenarios. For dependency injection in tests, the `mamba_path` parameter can be passed to `deploy_tier()` and `MambaDeployer()`.
+
 ## Development Workflow
 
 ### Testing Changes
@@ -144,6 +151,9 @@ pytest tests/unit/test_deploy_args.py -v
 # Run integration tests (requires --run-integration flag)
 pytest tests/integration/ --run-integration
 
+# Run E2E tests (requires real mamba and --run-e2e flag)
+pytest tests/e2e/ --run-e2e
+
 # Run with coverage
 pytest --cov=scripts/engine --cov-report=html
 ```
@@ -161,6 +171,14 @@ pytest --cov=scripts/engine --cov-report=html
 - Marked with `@pytest.mark.integration`
 - Require `--run-integration` flag to execute
 - May require network access or take longer to run
+
+**End-to-End Tests** (`tests/e2e/`):
+- Test complete deployment workflows using real mamba installations and YAML environment definitions
+- Marked with `@pytest.mark.e2e`
+- Require `--run-e2e` flag to execute
+- Require real mamba/micromamba in PATH
+- May take 5-10+ minutes for comprehensive tests
+- Validate complete bootstrap → deploy → promote workflows with real resources
 
 ### Test Fixtures
 

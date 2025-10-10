@@ -85,7 +85,10 @@ This plan addresses the testability and quality issues identified in the project
 - [ ] Make functions return status codes instead of calling `exit` directly
 - [ ] Add `--test-mode` flag to skip actual operations
 
-**NOTE**: Section 2.5 deferred to lower priority. The Python code has been fully refactored for testability (2.1-2.4 complete). Bash script refactoring can be done later if needed, but writing actual tests (Priority 3) is more valuable now.
+**NOTE**: Section 2.5 deferred to lower priority. The Python code has been
+fully refactored for testability (2.1-2.4 complete). Bash script refactoring
+can be done later if needed, but writing actual tests (Priority 3) is more
+valuable now.
 
 ## Priority 3: Add Unit Tests
 
@@ -141,7 +144,13 @@ This plan addresses the testability and quality issues identified in the project
 
 ## Priority 4: Add Integration Tests
 
-**STATUS**: Sections 4.2, 4.4, and 4.5 have been deferred to Priority 6 (E2E Tests with Real Resources) because they require a real mamba installation. The global `MAMBA` variable in `deploy.py` points to `sys.executable`, which doesn't work in test environments. To properly support integration testing without real mamba, the `mamba_path` parameter would need to be injected as a dependency (deferred from Priority 2.3). Only sections 4.1 and 4.3 remain as true integration tests that don't require real mamba.
+**STATUS**: Sections 4.2, 4.4, and 4.5 have been deferred to Priority 6
+(E2E Tests with Real Resources) because they require a real mamba installation.
+The global `MAMBA` variable in `deploy.py` points to `sys.executable`, which
+doesn't work in test environments. To properly support integration testing
+without real mamba, the `mamba_path` parameter would need to be injected as a
+dependency (deferred from Priority 2.3). Only sections 4.1 and 4.3 remain as
+true integration tests that don't require real mamba.
 
 ### 4.1 Test Bootstrap Workflow
 - [x] Create `tests/integration/test_bootstrap.py`
@@ -163,9 +172,18 @@ This plan addresses the testability and quality issues identified in the project
   - [ ] Test --keep mode (preserve existing envs) (deferred to Priority 6)
   - [ ] Run actual mamba commands (not mocked) (deferred to Priority 6)
 
-**NOTE**: Tests in `tests/integration/test_deploy.py` require a real mamba installation due to the global `MAMBA` variable pointing to `sys.executable` location. These tests have been moved to Priority 6 (E2E Tests with Real Resources). To properly support integration testing without real mamba, the `mamba_path` parameter needs to be injected as a dependency (deferred from Priority 2.3).
+**NOTE**: Tests in `tests/integration/test_deploy.py` require a real mamba
+installation due to the global `MAMBA` variable pointing to `sys.executable`
+location. These tests have been moved to Priority 6 (E2E Tests with Real
+Resources). To properly support integration testing without real mamba, the
+`mamba_path` parameter needs to be injected as a dependency (deferred from
+Priority 2.3).
 
-**DEPENDENCY ISSUE**: The current `tests/integration/test_deploy.py` imports `scripts.engine.deploy` directly, requiring rich, pyyaml, etc. in the test runner's Python environment. This creates fragile dependencies on the user's active environment. See Priority 7 for the plan to refactor these tests to use subprocess calls instead.
+**DEPENDENCY ISSUE**: The current `tests/integration/test_deploy.py` imports
+`scripts.engine.deploy` directly, requiring rich, pyyaml, etc. in the test
+runner's Python environment. This creates fragile dependencies on the user's
+active environment. See Priority 7 for the plan to refactor these tests to
+use subprocess calls instead.
 
 ### 4.3 Test Promote Staging Workflow
 - [x] Create `tests/integration/test_promote.py`
@@ -276,7 +294,8 @@ This plan addresses the testability and quality issues identified in the project
   - [x] Keep existing integration tests in `tests/integration/test_deploy.py` (uses mocks)
 
 ### 6.2 Full Workflow with Real Resources
-- [x] Create `tests/e2e/test_real_workflow.py` (incorporates deferred items from 4.4 and 4.5) **(completed but may need revision after Priority 7)**
+- [x] Create `tests/e2e/test_real_workflow.py` (incorporates deferred items
+  from 4.4 and 4.5) **(completed but may need revision after Priority 7)**
   - [x] Bootstrap → Deploy staging → Promote → Deploy new staging
   - [x] Use real YAML environment definitions
   - [x] Use real git commands for metadata
@@ -295,9 +314,17 @@ This plan addresses the testability and quality issues identified in the project
 
 ## Priority 7: Fix Integration Test Dependencies
 
-**Background**: The current `tests/integration/test_deploy.py` imports `scripts.engine.deploy` directly, which requires rich, pyyaml, and other engine dependencies to be present in the test runner's Python environment. This creates a fragile coupling where tests break when the user's active Python environment changes. E2E tests correctly avoid this by using subprocess calls to the bootstrap and deploy scripts, which manage their own dependencies within the bootstrapped engine environment.
+**Background**: The current `tests/integration/test_deploy.py` imports
+`scripts.engine.deploy` directly, which requires rich, pyyaml, and other
+engine dependencies to be present in the test runner's Python environment.
+This creates a fragile coupling where tests break when the user's active
+Python environment changes. E2E tests correctly avoid this by using
+subprocess calls to the bootstrap and deploy scripts, which manage their
+own dependencies within the bootstrapped engine environment.
 
-**Goal**: Refactor integration tests to use subprocess calls instead of direct imports, making them independent of the test runner's environment and more aligned with the project's architecture.
+**Goal**: Refactor integration tests to use subprocess calls instead of
+direct imports, making them independent of the test runner's environment
+and more aligned with the project's architecture.
 
 ### 7.1 Refactor Integration Tests to Use Subprocess
 - [ ] Modify `tests/integration/test_deploy.py` to call `scripts/deploy` via subprocess
@@ -349,7 +376,9 @@ This plan addresses the testability and quality issues identified in the project
 - [ ] Update CLAUDE.md with testing strategy documentation
 - [ ] Consider whether to remove import-based tests entirely
 
-**Outcome**: Integration tests become independent of test runner's Python environment, more robust, and better aligned with how the scripts are actually used in production.
+**Outcome**: Integration tests become independent of test runner's Python
+environment, more robust, and better aligned with how the scripts are
+actually used in production.
 
 ## Quick Wins (Can be done immediately)
 

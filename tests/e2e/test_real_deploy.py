@@ -51,7 +51,11 @@ def e2e_bootstrap_env(tmp_path):
     )
 
     if result.returncode != 0:
-        pytest.fail(f"Bootstrap failed for E2E test: {result.stderr}")
+        pytest.fail(
+            f"Bootstrap failed for E2E test:\n"
+            f"stdout: {result.stdout}\n"
+            f"stderr: {result.stderr}"
+        )
 
     return target_dir
 

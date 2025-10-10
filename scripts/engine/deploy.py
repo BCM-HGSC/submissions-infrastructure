@@ -7,6 +7,7 @@ from datetime import datetime as dt
 from logging import critical, debug, error, info, warning
 from pathlib import Path
 from re import match
+import shutil
 from subprocess import DEVNULL, PIPE, STDOUT
 import sys
 
@@ -23,7 +24,9 @@ from .validators import (
     validate_safe_path,
 )
 
-MAMBA = Path(sys.executable).with_name("mamba")  # mamba in same bin/ as python3
+# Find mamba in PATH instead of assuming it's next to Python executable
+_mamba_path = shutil.which("mamba")
+MAMBA = Path(_mamba_path) if _mamba_path else None
 CODE_ROOT_DIR = Path(__file__).parent.parent.parent
 RESOURCES_DIR = CODE_ROOT_DIR / "resources"
 DEFS_DIR = RESOURCES_DIR / "defs"
@@ -40,15 +43,20 @@ def deploy_tier(
     run_function=None,  # Deprecated, use command_runner  # noqa: ARG001
     filesystem: FileSystemProtocol | None = None,
     command_runner: CommandRunnerProtocol | None = None,
+    env_yamls: list[Path] | None = None,
+    mamba_path: Path | None = None,
 ) -> None:
     if filesystem is None:
         filesystem = RealFileSystem()
     if command_runner is None:
         command_runner = RealCommandRunner()
 
+    # Use provided mamba_path or default MAMBA
+    mamba_binary = mamba_path if mamba_path is not None else MAMBA
+
     # Check disk space before starting deployment
     force = mode == "force"
-    worklist = list_conda_environment_defs()
+    worklist = env_yamls if env_yamls is not None else list_conda_environment_defs()
     try:
         success, message = check_disk_space(
             target, operation="deploy", env_yamls=worklist, force=force
@@ -62,7 +70,7 @@ def deploy_tier(
         critical(str(e))
         sys.exit(4)
 
-    check_mamba(filesystem)
+    check_mamba(filesystem, mamba_binary)
     prod_path = setup_tier_path(target, "production", filesystem)
     tier_path = setup_tier_path(target, tier, filesystem)
     if tier_path == prod_path:
@@ -77,7 +85,14 @@ def deploy_tier(
         filesystem.rmtree(tier_path)
         filesystem.mkdir(tier_path)
     deployer = MambaDeployer(
-        target, tier_path, dry_run, offline, keep, command_runner, filesystem
+        target,
+        tier_path,
+        dry_run,
+        offline,
+        keep,
+        command_runner,
+        filesystem,
+        mamba_binary,
     )
     if deployer.keep:
         deployer.info()
@@ -89,10 +104,13 @@ def deploy_tier(
     deployer.store_git_info()
 
 
-def check_mamba(filesystem: FileSystemProtocol) -> None:
-    info(f"{MAMBA=}")
-    if not filesystem.is_file(MAMBA):
-        critical(f"Required binary not found: mamba at {MAMBA}")
+def check_mamba(filesystem: FileSystemProtocol, mamba_binary: Path | None) -> None:
+    info(f"{mamba_binary=}")
+    if mamba_binary is None:
+        critical("Required binary not found: mamba not in PATH")
+        sys.exit(2)
+    if not filesystem.is_file(mamba_binary):
+        critical(f"Required binary not found: mamba at {mamba_binary}")
         sys.exit(2)
 
 
@@ -180,6 +198,7 @@ class MambaDeployer:
         keep: bool = False,
         command_runner: CommandRunnerProtocol | None = None,
         filesystem: FileSystemProtocol | None = None,
+        mamba_binary: Path | None = None,
     ):
         self.dry_run = dry_run
         self.offline = offline
@@ -188,6 +207,7 @@ class MambaDeployer:
             command_runner if command_runner is not None else RealCommandRunner()
         )
         self.filesystem = filesystem if filesystem is not None else RealFileSystem()
+        self.mamba = mamba_binary if mamba_binary is not None else MAMBA
         self.envs_dir = tier_path / "conda/envs"
         self.bin_dir = tier_path / "bin"
         self.etc_dir = tier_path / "etc"
@@ -205,7 +225,7 @@ class MambaDeployer:
         debug(f"vars(deployer)={vars(self)}")
 
     def info(self) -> None:
-        self.command_runner.run([MAMBA, "info"], env=self.env)
+        self.command_runner.run([self.mamba, "info"], env=self.env)
 
     def deploy_conda_environments(self, worklist: list[Path]) -> None:
         for env_yaml in worklist:
@@ -239,7 +259,7 @@ class MambaDeployer:
                 return 0
         if self.offline:
             options.append("--offline")
-        mamba_command = [MAMBA, "env", "create", "-y", *options]
+        mamba_command = [self.mamba, "env", "create", "-y", *options]
         mamba_command += ["-n", env_name, "-f", DEFS_DIR / env_yaml]
         if self.dry_run:
             mamba_command[:0] = ["/usr/bin/env", "echo"]

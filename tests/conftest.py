@@ -105,6 +105,10 @@ def pytest_configure(config: Any) -> None:
         "markers",
         "integration: mark test as integration test (requires --run-integration)",
     )
+    config.addinivalue_line(
+        "markers",
+        "e2e: mark test as end-to-end test (requires real mamba and --run-e2e)",
+    )
 
 
 def pytest_addoption(parser: Any) -> None:
@@ -115,14 +119,23 @@ def pytest_addoption(parser: Any) -> None:
         default=False,
         help="run integration tests",
     )
+    parser.addoption(
+        "--run-e2e",
+        action="store_true",
+        default=False,
+        help="run end-to-end tests (requires real mamba installation)",
+    )
 
 
 def pytest_collection_modifyitems(config: Any, items: list) -> None:
-    """Skip integration tests unless --run-integration is provided."""
-    if config.getoption("--run-integration"):
-        return
+    """Skip integration and e2e tests unless appropriate flags are provided."""
+    skip_integration = not config.getoption("--run-integration")
+    skip_e2e = not config.getoption("--run-e2e")
 
-    skip_integration = pytest.mark.skip(reason="need --run-integration option to run")
     for item in items:
-        if "integration" in item.keywords:
-            item.add_marker(skip_integration)
+        if skip_integration and "integration" in item.keywords:
+            item.add_marker(
+                pytest.mark.skip(reason="need --run-integration option to run")
+            )
+        if skip_e2e and "e2e" in item.keywords:
+            item.add_marker(pytest.mark.skip(reason="need --run-e2e option to run"))

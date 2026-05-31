@@ -88,6 +88,8 @@ This command will switch the production and staging symlinks:
 scripts/promote_staging
 ```
 
+> **Note on `--dry-run`**: The `--dry-run` flag only skips the mamba environment-create commands — it does **not** prevent the staging directory from being cleared. Running `scripts/deploy TARGET_DIR staging --dry-run` will still wipe and recreate the staging directory contents.
+
 ## Commands
 
 - `scripts/bootstrap`: create a new fresh start infrastructure.

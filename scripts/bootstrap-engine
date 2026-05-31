@@ -187,6 +187,9 @@ setup_micromamba() {
             fi
         fi
     fi
+    if [[ -z "$DRY_RUN" ]] && ! "$MAMBA" --version &>/dev/null; then
+        die "micromamba at $MAMBA is not functional" 2
+    fi
     log_debug "MAMBA=$MAMBA"
 }
 

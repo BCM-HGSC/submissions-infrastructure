@@ -21,6 +21,7 @@ main() {
     cd "$TARGET_DIR"
     "$SCRIPT_DIR/sanitize-command" \
         PYTHONPATH="$SCRIPT_DIR" \
+        PATH="$(pwd)/engine_home/engine/bin:$(pwd)/engine_home/engine/condabin:/usr/bin:/bin" \
         engine_home/engine/bin/python3 -m engine "${ARGS[@]}"
 }
 

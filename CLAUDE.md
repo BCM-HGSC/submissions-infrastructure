@@ -118,10 +118,16 @@ The deployment engine detects mamba using one of two approaches:
 
 The PATH-based approach is the default in `scripts/engine/deploy.py` and allows for flexible testing scenarios. For dependency injection in tests, the `mamba_path` parameter can be passed to `deploy_tier()` and `MambaDeployer()`.
 
+**Important**: `scripts/deploy` uses `sanitize-command`, which strips PATH to `/usr/bin:/bin`. Because `deploy.py` relies on `shutil.which("mamba")`, the deploy script must explicitly pass the engine bin dirs to `sanitize-command`:
+```
+PATH="$(pwd)/engine_home/engine/bin:$(pwd)/engine_home/engine/condabin:/usr/bin:/bin"
+```
+If `scripts/deploy` is ever regenerated or refactored, this PATH line must be preserved or mamba will not be found.
+
 ## Development Workflow
 
 ### Testing Changes
-- Use `--dry-run` flag to preview deployments
+- Use `--dry-run` flag to preview deployments — **caution**: `--dry-run` only skips the mamba env-create commands (prepends `echo`). It does **not** protect against the `rmtree` + `mkdir` that clears the staging directory before deployment. Running `--dry-run` on `staging` will still wipe and recreate the staging directory.
 - Test with `--offline` for air-gapped environments
 - Engine rotation allows testing new versions safely
 

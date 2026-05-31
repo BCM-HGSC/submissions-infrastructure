@@ -9,6 +9,27 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 1. Clone or download the software.
 2. Run commands in the scripts directory to create and update infrastructure.
 
+### Bootstrap
+
+Pass the **parent** of the `infrastructure/` directory as `TARGET_DIR`. For
+example, if the deployment lives at `/hgsc_software/submissions/infrastructure/`:
+
+```bash
+cd /hgsc_software/submissions
+bash submissions-infrastructure-git/scripts/bootstrap .
+```
+
+The script creates `./conda_package_cache`, `./engine_home`, and
+`./infrastructure/` under `TARGET_DIR`. Passing `infrastructure/` itself as
+`TARGET_DIR` is a common mistake — it would nest a new
+`infrastructure/infrastructure/` inside the existing one.
+
+If `infrastructure/` already exists (re-bootstrapping), add `--force`:
+
+```bash
+bash submissions-infrastructure-git/scripts/bootstrap --force .
+```
+
 ## Documentation
 
 Comprehensive documentation for all core scripts is available in the `docs/` directory. See [docs/README.md](docs/README.md) for:

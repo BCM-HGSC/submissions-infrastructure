@@ -2,9 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Context: Relationship to Deployed Installations
+
+This repository manages conda-based software deployments in multiple locations: the shared team
+installation at `/hgsc_software/submissions/`, and equivalent deployments on employee laptops.
+Changes to conda environments or bootstrap logic must be made here and propagated to staging before
+reaching production in any deployment.
+
+`/hgsc_software/submissions/infrastructure/` is one deployment target managed by this repository.
+Other things in `/hgsc_software/submissions/` (such as `aws-object-search/`) are not directly
+managed here and have their own deployment mechanisms.
+
 ## Project Overview
 
-This repository contains infrastructure automation code for generating on-prem conda-based infrastructure for the Submissions team at BCM-HGSC.The system creates a tiered deployment structure with blue/green rotation capabilities and engine-based management.
+This repository contains infrastructure automation code for generating on-prem conda-based infrastructure for the Submissions team at BCM-HGSC. The system creates a tiered deployment structure with blue/green rotation capabilities and engine-based management.
 
 ## Key Commands
 

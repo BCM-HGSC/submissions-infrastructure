@@ -30,9 +30,9 @@ def main(cli_args: list[str]) -> None:
     deploy_tier(
         args.target,
         args.tier,
-        args.dry_run,
-        args.offline,
-        args.mode,
+        dry_run=args.dry_run,
+        offline=args.offline,
+        mode=args.mode,
         filesystem=filesystem,
         command_runner=command_runner,
     )

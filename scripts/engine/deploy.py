@@ -37,6 +37,7 @@ ETC_SOURCE_DIR = RESOURCES_DIR / "etc"
 def deploy_tier(
     target: Path,
     tier: str,
+    *,
     dry_run: bool,
     offline: bool,
     mode: str | None = None,
@@ -58,7 +59,7 @@ def deploy_tier(
     force = mode == "force"
     worklist = env_yamls if env_yamls is not None else list_conda_environment_defs()
     try:
-        success, message = check_disk_space(
+        _success, message = check_disk_space(
             target, operation="deploy", env_yamls=worklist, force=force
         )
         if message:
@@ -87,12 +88,12 @@ def deploy_tier(
     deployer = MambaDeployer(
         target,
         tier_path,
-        dry_run,
-        offline,
-        keep,
-        command_runner,
-        filesystem,
-        mamba_binary,
+        dry_run=dry_run,
+        offline=offline,
+        keep=keep,
+        command_runner=command_runner,
+        filesystem=filesystem,
+        mamba_binary=mamba_binary,
     )
     if deployer.keep:
         deployer.info()
@@ -193,6 +194,7 @@ class MambaDeployer:
         self,
         target: Path,
         tier_path: Path,
+        *,
         dry_run: bool,
         offline: bool,
         keep: bool = False,

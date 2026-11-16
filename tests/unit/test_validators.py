@@ -110,7 +110,7 @@ def test_validate_env_yaml_missing_channels(tmp_path):
   - python
 """
     )
-    with pytest.raises(ValidationError, match="Missing required keys.*channels"):
+    with pytest.raises(ValidationError, match=r"Missing required keys.*channels"):
         validate_env_yaml(yaml_file)
 
 
@@ -122,7 +122,7 @@ def test_validate_env_yaml_missing_dependencies(tmp_path):
   - conda-forge
 """
     )
-    with pytest.raises(ValidationError, match="Missing required keys.*dependencies"):
+    with pytest.raises(ValidationError, match=r"Missing required keys.*dependencies"):
         validate_env_yaml(yaml_file)
 
 
@@ -131,7 +131,7 @@ def test_validate_env_yaml_missing_both_keys(tmp_path):
     yaml_file = tmp_path / "test.yaml"
     yaml_file.write_text("name: test\n")
     with pytest.raises(
-        ValidationError, match="Missing required keys.*channels.*dependencies"
+        ValidationError, match=r"Missing required keys.*channels.*dependencies"
     ):
         validate_env_yaml(yaml_file)
 
@@ -818,7 +818,7 @@ dependencies:
 
     # With YAMLs, estimate will be ~(2 + 3) * 50MB * 1.5 / 1024 + 10 buffer = ~10.36 GB
     # 18 GB available > 15 GB minimum, but might trigger estimated need warning
-    success, message = check_disk_space(
+    success, _message = check_disk_space(
         tmp_path, operation="deploy", env_yamls=[yaml1, yaml2]
     )
     assert success is True

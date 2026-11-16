@@ -140,9 +140,9 @@ def test_quick_deploy_subset(e2e_bootstrap_env):
     assert envs_dir.exists(), "conda/envs directory should exist"
 
     created_envs = list(envs_dir.iterdir())
-    assert (
-        len(created_envs) >= 2
-    ), f"Should create at least 2 environments, got {len(created_envs)}"
+    assert len(created_envs) >= 2, (
+        f"Should create at least 2 environments, got {len(created_envs)}"
+    )
 
     # Verify specific environments exist
     env_names = [env.stem for env in env_yamls]
@@ -355,9 +355,9 @@ def test_deploy_keep_mode_preserves_environments(e2e_bootstrap_env):
         env_path = envs_dir / env_name
         assert env_path.exists(), f"Environment {env_name} should still exist"
         current_mtime = env_path.stat().st_mtime
-        assert (
-            current_mtime == original_mtime
-        ), f"Environment {env_name} should not be recreated in keep mode"
+        assert current_mtime == original_mtime, (
+            f"Environment {env_name} should not be recreated in keep mode"
+        )
 
 
 @pytest.mark.e2e

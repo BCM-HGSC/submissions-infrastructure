@@ -146,9 +146,9 @@ def test_full_workflow_bootstrap_deploy_promote_rotate(tmp_path):  # noqa: PLR09
 
     # Resolve symlink and verify it's executable
     resolved_mamba = mamba_path.resolve()
-    assert (
-        resolved_mamba.exists()
-    ), f"resolved mamba binary should exist at {resolved_mamba}"
+    assert resolved_mamba.exists(), (
+        f"resolved mamba binary should exist at {resolved_mamba}"
+    )
     assert os.access(resolved_mamba, os.X_OK), "mamba binary should be executable"
 
     # Verify initial engine is engine_a
@@ -235,12 +235,12 @@ def test_full_workflow_bootstrap_deploy_promote_rotate(tmp_path):  # noqa: PLR09
     production_color = production_symlink.readlink().name
     new_staging_color = staging_symlink.readlink().name
 
-    assert (
-        production_color == staging_color
-    ), f"production should point to original staging color {staging_color}"
-    assert (
-        new_staging_color != production_color
-    ), "staging should point to opposite color"
+    assert production_color == staging_color, (
+        f"production should point to original staging color {staging_color}"
+    )
+    assert new_staging_color != production_color, (
+        "staging should point to opposite color"
+    )
     assert new_staging_color in [
         "blue",
         "green",
@@ -261,24 +261,24 @@ def test_full_workflow_bootstrap_deploy_promote_rotate(tmp_path):  # noqa: PLR09
 
     # Verify new staging deployment
     new_staging_dir = infrastructure_dir / new_staging_color
-    assert (
-        new_staging_dir.exists()
-    ), f"new staging directory {new_staging_color} should exist"
+    assert new_staging_dir.exists(), (
+        f"new staging directory {new_staging_color} should exist"
+    )
 
     new_envs_dir = new_staging_dir / "conda" / "envs"
     assert new_envs_dir.exists(), "new staging conda/envs should exist"
 
     for env_name in env_names:
         env_path = new_envs_dir / env_name
-        assert (
-            env_path.exists()
-        ), f"Environment {env_name} should be created in new staging"
+        assert env_path.exists(), (
+            f"Environment {env_name} should be created in new staging"
+        )
 
     assert (new_staging_dir / "bin").exists(), "new staging bin directory should exist"
     assert (new_staging_dir / "etc").exists(), "new staging etc directory should exist"
-    assert (
-        new_staging_dir / "meta"
-    ).exists(), "new staging meta directory should exist"
+    assert (new_staging_dir / "meta").exists(), (
+        "new staging meta directory should exist"
+    )
 
     # Verify complete blue/green rotation worked
     blue_dir = infrastructure_dir / "blue"
@@ -316,9 +316,9 @@ def test_full_workflow_bootstrap_deploy_promote_rotate(tmp_path):  # noqa: PLR09
     assert new_mamba_path.exists(), "new engine should have mamba binary"
     resolved_new_mamba = new_mamba_path.resolve()
     assert resolved_new_mamba.exists(), "resolved new mamba binary should exist"
-    assert os.access(
-        resolved_new_mamba, os.X_OK
-    ), "new mamba binary should be executable"
+    assert os.access(resolved_new_mamba, os.X_OK), (
+        "new mamba binary should be executable"
+    )
 
     # Verify all metadata tracked throughout workflow
     for tier_color in ["blue", "green"]:
@@ -329,12 +329,12 @@ def test_full_workflow_bootstrap_deploy_promote_rotate(tmp_path):  # noqa: PLR09
             description_file = tier_meta / "description"
 
             assert commit_file.exists(), f"{tier_color} should have commit metadata"
-            assert (
-                tree_hash_file.exists()
-            ), f"{tier_color} should have tree_hash metadata"
-            assert (
-                description_file.exists()
-            ), f"{tier_color} should have description metadata"
+            assert tree_hash_file.exists(), (
+                f"{tier_color} should have tree_hash metadata"
+            )
+            assert description_file.exists(), (
+                f"{tier_color} should have description metadata"
+            )
 
             # Verify metadata is real git data
             commit = commit_file.read_text().strip()
@@ -342,12 +342,12 @@ def test_full_workflow_bootstrap_deploy_promote_rotate(tmp_path):  # noqa: PLR09
             description = description_file.read_text().strip()
 
             assert len(commit) == 40, f"{tier_color} commit should be valid git SHA"
-            assert (
-                len(tree_hash) == 40
-            ), f"{tier_color} tree_hash should be valid git SHA"
+            assert len(tree_hash) == 40, (
+                f"{tier_color} tree_hash should be valid git SHA"
+            )
             assert len(description) > 0, f"{tier_color} description should not be empty"
-            assert (
-                "mock" not in description.lower()
-            ), f"{tier_color} should have real git description"
+            assert "mock" not in description.lower(), (
+                f"{tier_color} should have real git description"
+            )
 
     print("\n=== Full Workflow Test Complete ===")

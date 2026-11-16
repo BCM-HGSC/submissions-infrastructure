@@ -291,6 +291,6 @@ def test_deploy_keep_mode(deploy_test_env, mock_git_command_runner):
     second_deploy_envs = set(envs_dir.iterdir()) if envs_dir.exists() else set()
 
     # Should have same environments
-    assert (
-        first_deploy_envs == second_deploy_envs
-    ), "keep mode should preserve environments"
+    assert first_deploy_envs == second_deploy_envs, (
+        "keep mode should preserve environments"
+    )

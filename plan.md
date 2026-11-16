@@ -153,6 +153,12 @@ iac [--target IAC_PARENT] [-v] [-n] SUBCOMMAND [options]
 - [ ] Integration tests call `pytest.skip` when bootstrap fails
   (`tests/integration/test_bootstrap.py`), which hides real failures. Fail
   instead.
+- [ ] The git fixture in `tests/e2e/test_real_workflow.py` runs
+  `git config user.name "E2E Test"` and at some point wrote it into this
+  repo's own `.git/config`; two commits on main carry that author. The
+  override was removed 2026-11-16. Find how the fixture reached the real
+  repo and make it impossible (for example `GIT_CONFIG_GLOBAL` and
+  per-command `-c` instead of `git config`).
 - [ ] Unit tests for the `env_yamls` parameter (issue #49). Note the issue
   names `tests/unit/test_deploy.py`; the file is `test_deploy_tier.py`.
 - [ ] Remove or implement the two permanently skipped tests (offline,

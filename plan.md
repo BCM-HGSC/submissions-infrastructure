@@ -180,7 +180,8 @@ Done 2026-11-16.
   (`.github/workflows/ci.yml`).
 - [x] `tests/unit/test_profile.py` sources `profile.sh` in a bare bash and
   a bare `zsh -f`.
-- [ ] Run `--run-integration` and `--run-e2e` once on Linux.
+- [ ] Run `--run-integration` on Linux and `--run-e2e` anywhere. The real
+  cluster refreshes covered the same paths by hand.
 - [ ] Offline-mode E2E: needs a populated package cache to be meaningful.
 
 ## 7. Tier contents
@@ -237,4 +238,16 @@ Real runs on a scratch target, macOS arm64, 2026-11-16:
 
 - `pytest tests/integration --run-integration`: 8 passed.
 
-Not yet run anywhere: the Linux paths and the E2E suite (see section 6).
+Deployments refreshed 2026-11-16 from 19c9487 on branch `iac-cli`, each by
+`iac engine`, `iac deploy`, a check that `staging/etc/profile.sh` sources
+cleanly in a bare bash and a bare `zsh -f`, then `iac promote`:
+
+- the Mac target `~/team_infrastructure`
+- the analysis cluster (`analysis2`, RHEL 8.8, x86_64)
+- the clinical cluster (`clinical1`), last deployed in 2023
+
+On the clusters `iac` was started with a Python from the deployment itself,
+because uv is not on `PATH` for `ssh host command`. The previous production
+tier is staging on each, so `iac promote` rolls back until the next deploy.
+
+Not yet run anywhere: the E2E suite, and the integration suite on Linux.

@@ -18,10 +18,12 @@ Most often the user runs `scripts/deploy /path/to/target_dir staging`.
 
 **Options:**
 - `--offline`: Run in offline mode (no network access)
-- `-n, --dry-run`: Show what would be done without making changes
+- `-n, --dry-run`: Log what would be done. Creates, removes, and runs nothing.
 - `--keep`: Keep existing conda environments (don't remove/recreate)
 - `--force`: Overwrite existing conda environments
 - `-h, --help`: Show help message
+
+`--keep` and `--force` cannot be combined.
 
 ## Operation Flow
 
@@ -75,6 +77,12 @@ The Python engine (`scripts/engine/__main__.py`) performs the actual deployment:
 3. Promote staging to production: `scripts/promote_staging`
 
 ## Error Handling
+
+Every environment is attempted. If any fails, the engine lists the failures
+and exits with status 4 before copying `bin/` and `etc/` or writing `meta/`,
+so a tier with `meta/commit` is one whose environments all installed. The
+mamba output for each environment is in
+`$TARGET_DIR/logs/<timestamp>-<tier>-<environment>.log`.
 
 The script propagates errors from the Python engine. Common failures:
 - Missing or invalid environment definitions (YAML errors)

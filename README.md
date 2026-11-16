@@ -74,12 +74,14 @@ TARGET_DIR
     │   ├── bin
     │   ├── conda
     │   ├── etc
-    │   ├── logs
     │   └── meta
     ├── green
     ├── production -> green
     └── staging -> blue
 ```
+
+`scripts/deploy` also writes one log per environment to `TARGET_DIR/logs`,
+outside the tiers so the logs survive a tier being replaced.
 
 This command will switch the production and staging symlinks:
 

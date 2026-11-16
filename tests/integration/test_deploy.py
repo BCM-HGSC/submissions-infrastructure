@@ -114,7 +114,7 @@ def test_deploy_to_staging_creates_structure(deploy_test_env, mock_git_command_r
     assert envs_dir.exists(), "conda/envs directory should be created"
 
     # Check for logs directory
-    logs_dir = staging_dir / "logs"
+    logs_dir = deploy_test_env / "logs"
     assert logs_dir.exists(), "logs directory should be created"
 
 
@@ -242,10 +242,11 @@ def test_deploy_dry_run_mode(deploy_test_env, mock_git_command_runner):
 
     staging_dir = deploy_test_env / "infrastructure" / "staging"
 
-    # Directory should be created
-    assert staging_dir.exists(), "staging directory created even in dry-run"
+    # Dry run creates nothing, not even the tier directory
+    assert not staging_dir.exists(), "staging directory created in dry-run"
+    assert not (deploy_test_env / "logs").exists(), "logs written in dry-run"
 
-    # But bin and etc should NOT be deployed in dry-run
+    # And bin and etc should NOT be deployed in dry-run
     bin_dir = staging_dir / "bin"
     etc_dir = staging_dir / "etc"
     meta_dir = staging_dir / "meta"

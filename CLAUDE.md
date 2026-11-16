@@ -112,11 +112,11 @@ When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment vari
 - Pure functions separated from side effects (e.g., `validate_tier_path()`, `validate_color()`)
 
 **Mamba Detection**:
-The deployment engine detects mamba using one of two approaches:
-1. **PATH-based detection**: Uses `shutil.which("mamba")` to find mamba in the system PATH (preferred for production and testing)
-2. **Engine-relative path**: Uses `$IAC_PARENT/engine_home/engine/condabin/mamba` when running from a bootstrapped engine environment
+`find_mamba()` in `scripts/engine/deploy.py` looks in this order:
+1. **Engine-relative**: `bin/mamba`, then `condabin/mamba`, in the environment that `sys.executable` belongs to. This is what `scripts/deploy` relies on, because it runs the engine with `PATH=/usr/bin:/bin`.
+2. **PATH**: `shutil.which("mamba")`, a fallback for development.
 
-The PATH-based approach is the default in `scripts/engine/deploy.py` and allows for flexible testing scenarios. For dependency injection in tests, the `mamba_path` parameter can be passed to `deploy_tier()` and `MambaDeployer()`.
+Tests inject a location with the `mamba_path` parameter of `deploy_tier()` or by patching `find_mamba`.
 
 ## Development Workflow
 
@@ -133,7 +133,8 @@ The PATH-based approach is the default in `scripts/engine/deploy.py` and allows 
 
 ### Debugging
 - Use `--verbose` flag for detailed logging
-- Check engine logs in deployment process
+- Per-environment mamba logs are in `TARGET_DIR/logs/`
+- `scripts/deploy` exits 4 if any environment fails to install
 - YAML definitions are automatically validated before deployment
 - Required binaries (curl, tar, git) are checked before bootstrap with helpful error messages
 

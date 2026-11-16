@@ -45,29 +45,31 @@ These change the shape of sections 2 to 4. Recommendations are listed first.
 
 ## 2. Data-loss and wrong-status bugs in `deploy`
 
-- [ ] `--dry-run` removes the tier before the dry-run check
-  (`scripts/engine/deploy.py:80-86`) and then writes log files **(read)**.
-  Dry run must touch nothing.
-- [ ] A failed `mamba env create` is logged and ignored; `deploy` exits 0
-  **(read)**. Apply D4.
-- [ ] mamba is located with `shutil.which` at import, but `scripts/deploy`
-  runs the engine with `PATH=/usr/bin:/bin` **(read)**. All E2E tests pass
-  `mamba_path` explicitly, so the real path is untested. Resolve mamba
-  relative to the engine (`sys.executable`), keep `mamba_path` injection.
-- [ ] `setup_tier_path(target, "production")` creates a real `production`
-  directory when the symlink is missing **(read)**. Only resolve it.
-- [ ] Deploying to `staging` deletes `staging/logs` with the tier. Move logs
-  outside the tier (for example `TARGET/logs/`).
-- [ ] `--keep` and `--force` are documented as exclusive but the last one
-  wins **(read)**. Make them an argparse exclusive group.
-- [ ] `dir_path` raises `NotADirectoryError` and produces a traceback; raise
-  `ArgumentTypeError`.
-- [ ] `main()` logs the whole environment at INFO. Drop it to DEBUG.
-- [ ] `parse_command_line()` ignores the `cli_args` it is given; the
-  docstring still shows the old `TIER TARGET_DIR` order.
-- [ ] `write_meta` writes through `Path` directly, bypassing the filesystem
-  abstraction; the `expect_fail` argument is always true.
-- [ ] Remove the deprecated `run_function` parameter.
+Done 2026-11-16. Each fix has a test in `tests/unit/test_deploy_safety.py`
+or `test_engine_cli.py`; the first six tests failed before the fix. Also
+run through the real `scripts/deploy` wrapper against a stand-in engine
+with a fake mamba. Integration and E2E suites were edited to match but not
+run.
+
+- [x] `--dry-run` removed the tier and wrote log files (confirmed by
+  test). Dry run now creates, removes, and runs nothing.
+- [x] A failed `mamba env create` was logged and ignored (confirmed by
+  test). All environments are attempted; any failure exits 4 before
+  `bin/`, `etc/`, and `meta/` are written. This applies the D4
+  recommendation; reverse it if D4 goes the other way.
+- [x] mamba was located with `shutil.which` under `PATH=/usr/bin:/bin`.
+  `find_mamba()` now looks in the engine first, then `PATH`.
+- [x] `setup_tier_path(target, "production")` created a real `production`
+  directory when the symlink was missing (confirmed by test).
+- [x] Logs moved from `TIER/logs` to `TARGET/logs`, named
+  `<timestamp>-<tier>-<environment>.log`.
+- [x] `--keep` and `--force` are an argparse exclusive group.
+- [x] `dir_path` raises `ArgumentTypeError`.
+- [x] `main()` logs the environment at DEBUG.
+- [x] `parse_command_line()` uses the arguments it is given.
+- [x] `write_meta` writes through the filesystem abstraction;
+  `expect_fail` removed.
+- [x] Removed the deprecated `run_function` parameter.
 
 ## 3. One CLI: `scripts/iac` (issues #19, #24)
 

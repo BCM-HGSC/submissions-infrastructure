@@ -22,9 +22,9 @@ def mock_dependencies(
     mock_mamba = tmp_target_dir / "engine_home" / "engine" / "bin" / "mamba"
     mock_filesystem.files.add(mock_mamba)
 
-    # Patch the MAMBA global variable to point to our mock location
+    # Make mamba discovery return our mock location
     with (
-        patch("scripts.engine.deploy.MAMBA", mock_mamba),
+        patch("scripts.engine.deploy.find_mamba", return_value=mock_mamba),
         patch("scripts.engine.deploy.check_disk_space") as mock_check,
     ):
         mock_check.return_value = (True, "")
@@ -178,7 +178,7 @@ def test_deploy_tier_respects_disk_space_check_with_custom_envs(
     mock_filesystem.files.add(mock_mamba)
 
     with (
-        patch("scripts.engine.deploy.MAMBA", mock_mamba),
+        patch("scripts.engine.deploy.find_mamba", return_value=mock_mamba),
         patch("scripts.engine.deploy.check_disk_space") as mock_check,
     ):
         mock_check.return_value = (True, "")

@@ -5,12 +5,13 @@ from pathlib import Path
 import pytest
 
 from scripts.engine.deploy import (
-    MAMBA,
     deploy_tier,
     setup_tier_path,
     validate_tier_path,
 )
 from scripts.engine.filesystem import MockFileSystem
+
+FAKE_MAMBA = Path("/fake/engine/bin/mamba")
 
 
 def test_validate_tier_path_basic():
@@ -146,7 +147,7 @@ def test_production_tier_protection(tmp_path):
     filesystem.directories.add(tmp_path)
 
     # Mock mamba binary as existing
-    filesystem.files.add(MAMBA)
+    filesystem.files.add(FAKE_MAMBA)
 
     # Attempting to deploy to production should fail
     with pytest.raises(SystemExit) as exc_info:
@@ -156,6 +157,7 @@ def test_production_tier_protection(tmp_path):
             dry_run=False,
             offline=False,
             filesystem=filesystem,
+            mamba_path=FAKE_MAMBA,
         )
 
     assert exc_info.value.code == 4

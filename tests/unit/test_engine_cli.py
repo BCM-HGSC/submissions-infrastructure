@@ -1,5 +1,6 @@
 """Unit tests for engine CLI argument parsing."""
 
+from argparse import ArgumentTypeError
 import sys
 
 import pytest
@@ -71,23 +72,33 @@ def test_parse_force_flag(tmp_path, monkeypatch):
     assert args.mode == "force"
 
 
-def test_keep_and_force_mutually_exclusive(tmp_path, monkeypatch):
-    """Test that --keep and --force are mutually exclusive (last one wins)."""
-    # In argparse, when using store_const with same dest, last flag wins
-    test_args = ["engine", str(tmp_path), "staging", "--keep", "--force"]
-    monkeypatch.setattr(sys, "argv", test_args)
+@pytest.mark.parametrize("flags", [["--keep", "--force"], ["--force", "--keep"]])
+def test_keep_and_force_mutually_exclusive(tmp_path, flags):
+    """Test that --keep and --force cannot be combined."""
+    with pytest.raises(SystemExit) as exc_info:
+        parse_command_line([str(tmp_path), "staging", *flags])
 
-    args = parse_command_line()
+    assert exc_info.value.code == 2
 
-    assert args.mode == "force"  # Last flag should win
 
-    # Test opposite order
-    test_args = ["engine", str(tmp_path), "staging", "--force", "--keep"]
-    monkeypatch.setattr(sys, "argv", test_args)
+def test_parse_explicit_argv_ignores_sys_argv(tmp_path, monkeypatch):
+    """Test that an explicit argument list is used instead of sys.argv."""
+    monkeypatch.setattr(sys, "argv", ["engine", "/nonexistent", "production"])
 
-    args = parse_command_line()
+    args = parse_command_line([str(tmp_path), "staging", "--offline"])
 
-    assert args.mode == "keep"  # Last flag should win
+    assert args.target == tmp_path
+    assert args.tier == "staging"
+    assert args.offline is True
+
+
+def test_parse_nonexistent_target_is_usage_error(tmp_path, capsys):
+    """Test that a bad target is reported by argparse, not as a traceback."""
+    with pytest.raises(SystemExit) as exc_info:
+        parse_command_line([str(tmp_path / "nonexistent"), "staging"])
+
+    assert exc_info.value.code == 2
+    assert "not a directory" in capsys.readouterr().err
 
 
 def test_parse_missing_target(monkeypatch):
@@ -118,7 +129,7 @@ def test_dir_path_validator_nonexistent_path(tmp_path):
     """Test dir_path validator rejects nonexistent paths."""
     nonexistent = tmp_path / "nonexistent"
 
-    with pytest.raises(NotADirectoryError):
+    with pytest.raises(ArgumentTypeError):
         dir_path(str(nonexistent))
 
 
@@ -127,7 +138,7 @@ def test_dir_path_validator_file_not_directory(tmp_path):
     test_file = tmp_path / "test.txt"
     test_file.write_text("test")
 
-    with pytest.raises(NotADirectoryError):
+    with pytest.raises(ArgumentTypeError):
         dir_path(str(test_file))
 
 

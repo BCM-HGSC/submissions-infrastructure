@@ -296,13 +296,10 @@ def test_deploy_dry_run_mode(e2e_bootstrap_env):
 
     staging_dir = e2e_bootstrap_env / "infrastructure" / "staging"
 
-    # Directory should be created
-    assert staging_dir.exists(), "staging directory created even in dry-run"
-
-    # But bin, etc, and meta should NOT be deployed in dry-run
-    assert not (staging_dir / "bin").exists(), "bin should not be deployed in dry-run"
-    assert not (staging_dir / "etc").exists(), "etc should not be deployed in dry-run"
-    assert not (staging_dir / "meta").exists(), "meta should not be deployed in dry-run"
+    # Dry run changes nothing: no bin, etc, meta, environments, or logs
+    for name in ("bin", "etc", "meta", "conda", "logs"):
+        assert not (staging_dir / name).exists(), f"{name} created in dry-run"
+    assert not (e2e_bootstrap_env / "logs").exists(), "logs written in dry-run"
 
 
 @pytest.mark.e2e

@@ -1,6 +1,7 @@
 build
 __pycache__
 .conda
+.venv/
 
 # Test artifacts
 .pytest_cache/

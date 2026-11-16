@@ -26,6 +26,9 @@ export IAC_PARENT=$(dirname "$IAC_DIR")
 export IAC_TIER_NAME=$(basename $(dirname $(dirname "$__temp_arg0")))
 
 export CONDARC="$IAC_TIER_DIR/etc/condarc"
+# Beside each user's conda packages rather than in a home directory, which
+# on the clusters has a small quota.
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$IAC_PARENT/users/$USER/pip_cache}"
 export MAMBA_NO_BANNER=1
 export MAMBA_ROOT_PREFIX="$IAC_TIER_DIR/conda/envs/conda"
 
@@ -42,7 +45,6 @@ __add_env_if_exists experimental
 __add_env_if_exists unix
 __add_env_if_exists mac
 __add_env_if_exists linux
-__add_env_if_exists bioconda
 __add_env_if_exists python
 
 unset CONDA_SHLVL  # starting from scratch
@@ -59,6 +61,7 @@ iac_dump_vars() {
     echo "IAC_PARENT=$IAC_PARENT"
     echo "IAC_ORIGINAL_PATH=$IAC_ORIGINAL_PATH"
     echo "CONDARC=$CONDARC"
+    echo "PIP_CACHE_DIR=$PIP_CACHE_DIR"
 }
 
 if [[ -n $VERBOSE ]]; then
@@ -74,12 +77,13 @@ PATH=~/bin:"$IAC_DIR/bin":"$IAC_TIER_DIR/bin":"$PATH"
 export PATH
 
 if [[ -n $ZSH_NAME ]]; then
-    # If we don't have Oh My zsh or something similar, we need this for the
-    # completers defined in profile.d to work:
-    # TODO: Test this.
+    # The completers in profile.d call compdef, which exists only after
+    # compinit has run. Oh My Zsh and similar run it; a plain zsh does not.
+    # -i skips insecure directories without asking, since a team tier is
+    # group-writable.
     whence compdef &>/dev/null || {
         autoload -Uz compinit
-        compinit
+        compinit -i
     }
 fi
 

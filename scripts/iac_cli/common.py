@@ -1,14 +1,32 @@
 """Shared pieces: the run context, the error type, and command execution."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 import logging
+import os
 from pathlib import Path
 import subprocess
 
 log = logging.getLogger("iac")
 
 Runner = Callable[..., int]
+
+# Variables copied from the caller into a sanitized environment. The proxy
+# variables are how some sites reach the network at all.
+PASSED_THROUGH = (
+    "LOGNAME",
+    "USER",
+    "SHELL",
+    "TERM",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "all_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "ALL_PROXY",
+)
 
 
 class IacError(Exception):
@@ -54,6 +72,22 @@ def run_step(ctx: Context, argv: list[str], **kwargs) -> int:
         return 0
     log.debug("Running: %s", " ".join(argv))
     return ctx.run(argv, **kwargs)
+
+
+def sanitized_env(
+    home: Path, *, environ: Mapping[str, str] | None = None, **extra: str
+) -> dict[str, str]:
+    """
+    A minimal environment for running the engine and micromamba.
+
+    Nothing of the caller's shell setup (PATH, conda variables, PYTHONPATH)
+    reaches the child, so a deployment does not depend on who ran it.
+    """
+    if environ is None:
+        environ = os.environ
+    env = {name: environ[name] for name in PASSED_THROUGH if environ.get(name)}
+    env.update(HOME=str(home), PATH="/usr/bin:/bin", **extra)
+    return env
 
 
 def make_dir(ctx: Context, path: Path) -> None:

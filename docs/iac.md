@@ -7,8 +7,8 @@ iac [--target IAC_PARENT] [-v] [-n] SUBCOMMAND [options]
 ```
 
 It is a `uv run` script that uses only the Python standard library, so the
-one prerequisite is [uv](https://docs.astral.sh/uv/). The code is in
-`scripts/iac_cli/`.
+one prerequisite is [uv](https://docs.astral.sh/uv/). Fetching micromamba
+also uses `/usr/bin/curl`. The code is in `scripts/iac_cli/`.
 
 ## The target
 
@@ -50,6 +50,10 @@ Creates whatever the target is missing: `conda_package_cache/`,
 removes or replaces anything, so it is safe to run again. An engine that
 already exists is left alone.
 
+If `staging` and `production` point to the same color, which is what an
+interrupted `iac promote` leaves, bootstrap moves `staging` to the other
+one.
+
 ### engine
 
 ```
@@ -60,6 +64,17 @@ Builds a fresh engine from `resources/defs/special/engine.yaml` in the
 inactive slot (`engine_a` or `engine_b`) and then switches the `engine` link
 to it. If the build fails, the link is not touched and the active engine
 keeps working. The previous engine stays on disk until the next rotation.
+
+The engine is built by micromamba, which `iac` installs as
+`engine_home/micromamba`. The release is pinned in
+`scripts/iac_cli/micromamba.py` together with the SHA-256 of each
+platform's binary. A download that does not match is discarded, and a
+micromamba from any other release is replaced. With `--offline` nothing is
+fetched and whatever micromamba is already there is used.
+
+The build runs in a sanitized environment: `HOME` is `engine_home`, `PATH`
+is `/usr/bin:/bin`, and only `LOGNAME`, `USER`, `SHELL`, `TERM`, and the
+proxy variables are passed through.
 
 ### deploy
 
@@ -77,12 +92,19 @@ or `test`. A tier that resolves to the production tier is refused.
 - `--overwrite` empties and rebuilds a tier addressed as `blue` or `green`.
 
 Every environment is attempted. If any fails, the command lists the failures
-and exits 4 without copying `bin/` and `etc/` or writing `meta/`, so a tier
-with `meta/commit` is one whose environments all installed. The mamba output
-for each environment is in `TARGET/logs/<timestamp>-<tier>-<environment>.log`.
+and exits 4 without copying `bin/` and `etc/` or writing `meta/`. `meta/` is
+removed when a deploy starts and `meta/commit` is written last, so a tier
+with `meta/commit` is one where a deploy ran to completion; `iac promote`
+relies on that. The mamba output for each environment is in
+`TARGET/logs/<timestamp>-<tier>-<environment>.log`.
+
+`meta/` records the commit, tree hash, and `git describe` of this checkout,
+read with the engine's own git. When git cannot tell (a downloaded copy with
+no `.git`), the files say `unknown` and the deploy still succeeds.
 
 The work is done by the engine (`scripts/engine/`), which `iac` runs with
-the engine's own Python in a sanitized environment.
+the engine's own Python in the same sanitized environment as the engine
+build.
 
 ### promote
 
@@ -91,7 +113,8 @@ iac promote
 ```
 
 Makes the staging tier the production tier and points staging at the other
-color. See [promote_staging.md](promote_staging.md).
+color. Refuses a staging tier that was never deployed. Promoting again rolls
+back. See [promote.md](promote.md).
 
 ### status
 
@@ -109,8 +132,8 @@ Changes nothing.
 |---|---|
 | 0 | Success |
 | 1 | Usage error: bad arguments, or no target configured |
-| 2 | Missing dependency: no engine, no micromamba, no curl or tar |
-| 3 | Invalid input: bad path, bad tier name, bad config file |
+| 2 | Missing dependency: no engine, no micromamba, no curl |
+| 3 | Invalid input or state: bad tier name, bad config file, broken links, promoting a tier that was never deployed |
 | 4 | Operation failed: an install failed, or too little disk space |
 
 ## Typical use
@@ -126,18 +149,3 @@ source /path/to/target/infrastructure/staging/etc/profile.sh
 iac_load production
 scripts/iac promote
 ```
-
-## The old scripts
-
-`scripts/bootstrap`, `scripts/bootstrap-engine`, and `scripts/deploy` are
-deprecated shims that print a warning and call `iac`. They will be removed.
-
-| Old | New |
-|---|---|
-| `bootstrap TARGET` | `iac bootstrap --target TARGET` |
-| `bootstrap --force TARGET` | Refused. It erased `infrastructure/`, production included. |
-| `bootstrap-engine TARGET` | `iac engine --target TARGET` |
-| `bootstrap-engine --force TARGET` | `iac engine --skip-disk-check --target TARGET` |
-| `deploy TARGET TIER` | `iac deploy --target TARGET --tier TIER` |
-| `deploy TARGET TIER --force` | `iac deploy ... --overwrite --skip-disk-check` |
-| `promote_staging` (needs `IAC_TIER_DIR`) | `iac promote` |

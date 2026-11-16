@@ -6,7 +6,7 @@ import pytest
 
 from scripts.iac_cli.common import IacError
 from scripts.iac_cli.config import resolve_target
-from scripts.iac_cli.exit_codes import INVALID_INPUT, USAGE
+from scripts.iac_cli.exit_codes import INVALID_STATE, USAGE
 
 
 @pytest.fixture
@@ -105,4 +105,4 @@ def test_bad_config_is_invalid_input(places, content):
     with pytest.raises(IacError) as exc_info:
         resolve(places)
 
-    assert exc_info.value.code == INVALID_INPUT
+    assert exc_info.value.code == INVALID_STATE

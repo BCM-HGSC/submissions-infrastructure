@@ -7,7 +7,12 @@ import pytest
 from scripts.iac_cli import cli
 from scripts.iac_cli.cli import build_parser, main
 from scripts.iac_cli.common import Context, IacError
-from scripts.iac_cli.exit_codes import MISSING_DEPENDENCY, SUCCESS, USAGE
+from scripts.iac_cli.exit_codes import (
+    INVALID_STATE,
+    MISSING_DEPENDENCY,
+    SUCCESS,
+    USAGE,
+)
 from scripts.iac_cli.tiers import deploy, promote, status_lines
 
 SUBCOMMANDS = ["bootstrap", "engine", "deploy", "promote", "status"]
@@ -151,7 +156,9 @@ def test_main_deploy_without_engine_is_missing_dependency(tmp_path, caplog):
 # deploy
 
 
-def test_deploy_runs_the_engine_sanitized(target):
+def test_deploy_runs_the_engine_sanitized(target, monkeypatch):
+    monkeypatch.setenv("CONDA_PREFIX", "/somewhere/conda")
+    monkeypatch.setenv("https_proxy", "http://proxy.example:3128")
     runner = RecordingRunner()
     ctx = make_context(target, runner)
 
@@ -165,16 +172,21 @@ def test_deploy_runs_the_engine_sanitized(target):
     )
 
     assert result == 0
-    assert runner.calls[0]["cwd"] == target
-    assert runner.calls[0]["argv"] == [
-        "/repo/scripts/sanitize-command",
-        "PYTHONPATH=/repo/scripts",
+    call = runner.calls[0]
+    assert call["cwd"] == target
+    assert call["argv"] == [
         str(target / "engine_home/engine/bin/python3"),
         "-m",
         "engine",
         str(target),
         "staging",
     ]
+    assert call["env"]["PYTHONPATH"] == "/repo/scripts"
+    assert call["env"]["HOME"] == str(target / "engine_home")
+    assert call["env"]["PATH"] == "/usr/bin:/bin"
+    assert call["env"]["https_proxy"] == "http://proxy.example:3128"
+    assert "CONDA_PREFIX" not in call["env"]
+    assert "VERBOSE" not in call["env"]
 
 
 def test_deploy_passes_every_option(target):
@@ -190,9 +202,8 @@ def test_deploy_passes_every_option(target):
         skip_disk_check=True,
     )
 
-    argv = runner.calls[0]["argv"]
-    assert "VERBOSE=1" in argv
-    assert argv[-5:] == [
+    assert runner.calls[0]["env"]["VERBOSE"] == "1"
+    assert runner.calls[0]["argv"][-5:] == [
         "green",
         "--dry-run",
         "--offline",
@@ -233,18 +244,141 @@ def test_deploy_without_engine_raises(tmp_path):
 # promote
 
 
-def test_promote_supplies_the_tier_directory(target):
+@pytest.fixture
+def deployed_staging(target: Path) -> Path:
+    """Make the staging tier (blue) look deployed."""
+    blue = target / "infrastructure/blue"
+    (blue / "meta").mkdir()
+    (blue / "meta/commit").write_text("0123456789abcdef0123456789abcdef01234567\n")
+    (blue / "etc").mkdir()
+    (blue / "etc/profile.sh").write_text("")
+    return target
+
+
+def links(target: Path) -> dict[str, str]:
+    infrastructure = target / "infrastructure"
+    return {
+        path.name: str(path.readlink())
+        for path in sorted(infrastructure.iterdir())
+        if path.is_symlink()
+    }
+
+
+def test_promote_swaps_the_links(deployed_staging):
     runner = RecordingRunner()
 
-    promote(make_context(target, runner, dry_run=True))
+    assert promote(make_context(deployed_staging, runner)) == SUCCESS
 
-    call = runner.calls[0]
-    assert call["argv"] == [
-        str(target / "engine_home/engine/bin/python3"),
-        "/repo/scripts/promote_staging",
-        "--dry-run",
-    ]
-    assert call["env"]["IAC_TIER_DIR"] == str(target / "infrastructure/staging")
+    assert links(deployed_staging) == {"production": "blue", "staging": "green"}
+    assert runner.calls == []  # needs no engine and runs nothing
+
+
+def test_promote_twice_rolls_back(deployed_staging):
+    green = deployed_staging / "infrastructure/green"
+    (green / "meta").mkdir()
+    (green / "meta/commit").write_text("fedcba9876543210fedcba9876543210fedcba98\n")
+    (green / "etc").mkdir()
+    (green / "etc/profile.sh").write_text("")
+    ctx = make_context(deployed_staging)
+
+    promote(ctx)
+    promote(ctx)
+
+    assert links(deployed_staging) == {"production": "green", "staging": "blue"}
+
+
+def test_promote_works_without_an_engine(deployed_staging):
+    (deployed_staging / "engine_home/engine").unlink()
+
+    assert promote(make_context(deployed_staging)) == SUCCESS
+
+
+def test_promote_dry_run_changes_nothing(deployed_staging):
+    promote(make_context(deployed_staging, dry_run=True))
+
+    assert links(deployed_staging) == {"production": "green", "staging": "blue"}
+
+
+def test_promote_creates_a_missing_production_link(deployed_staging):
+    (deployed_staging / "infrastructure/production").unlink()
+
+    promote(make_context(deployed_staging))
+
+    assert links(deployed_staging) == {"production": "blue", "staging": "green"}
+
+
+def test_promote_replaces_a_dangling_production_link(deployed_staging):
+    (deployed_staging / "infrastructure/green").rmdir()
+
+    promote(make_context(deployed_staging))
+
+    assert links(deployed_staging) == {"production": "blue", "staging": "green"}
+
+
+def test_promote_refuses_a_tier_that_was_never_deployed(target):
+    with pytest.raises(IacError) as exc_info:
+        promote(make_context(target))
+
+    assert exc_info.value.code == INVALID_STATE
+    assert "has not been deployed" in str(exc_info.value)
+    assert links(target) == {"production": "green", "staging": "blue"}
+
+
+def test_promote_refuses_a_tier_whose_deploy_did_not_finish(deployed_staging):
+    """The engine removes meta/ first and writes meta/commit last."""
+    (deployed_staging / "infrastructure/blue/meta/commit").unlink()
+
+    with pytest.raises(IacError) as exc_info:
+        promote(make_context(deployed_staging))
+
+    assert exc_info.value.code == INVALID_STATE
+
+
+def test_promote_refuses_links_on_the_same_color(deployed_staging):
+    production = deployed_staging / "infrastructure/production"
+    production.unlink()
+    production.symlink_to("blue")
+
+    with pytest.raises(IacError) as exc_info:
+        promote(make_context(deployed_staging))
+
+    assert exc_info.value.code == INVALID_STATE
+    assert "iac bootstrap" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("name", ["staging", "production"])
+def test_promote_refuses_a_link_to_another_name(deployed_staging, name):
+    link = deployed_staging / "infrastructure" / name
+    link.unlink()
+    link.symlink_to("purple")
+
+    with pytest.raises(IacError) as exc_info:
+        promote(make_context(deployed_staging))
+
+    assert exc_info.value.code == INVALID_STATE
+    assert "expected blue or green" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("name", ["staging", "production"])
+def test_promote_refuses_a_link_that_is_a_directory(deployed_staging, name):
+    link = deployed_staging / "infrastructure" / name
+    link.unlink()
+    link.mkdir()
+
+    with pytest.raises(IacError) as exc_info:
+        promote(make_context(deployed_staging))
+
+    assert exc_info.value.code == INVALID_STATE
+    assert "Not a symlink" in str(exc_info.value)
+
+
+def test_promote_refuses_a_missing_staging_link(deployed_staging):
+    (deployed_staging / "infrastructure/staging").unlink()
+
+    with pytest.raises(IacError) as exc_info:
+        promote(make_context(deployed_staging))
+
+    assert exc_info.value.code == INVALID_STATE
 
 
 # status
@@ -263,10 +397,12 @@ def test_status_of_an_empty_directory(tmp_path):
 
 
 def test_status_reports_what_is_deployed(target):
-    meta = target / "infrastructure/green/meta"
-    meta.mkdir()
-    (meta / "commit").write_text("0123456789abcdef0123456789abcdef01234567\n")
-    (meta / "description").write_text("v1.2-3-g0123456\n")
+    green = target / "infrastructure/green"
+    (green / "meta").mkdir()
+    (green / "meta/commit").write_text("0123456789abcdef0123456789abcdef01234567\n")
+    (green / "meta/description").write_text("v1.2-3-g0123456\n")
+    (green / "etc").mkdir()
+    (green / "etc/profile.sh").write_text("")
     (target / "engine_home/micromamba").write_text("")
 
     lines = status_lines(make_context(target))
@@ -293,9 +429,10 @@ def test_status_flags_broken_links(target):
     ]
 
 
-def test_status_treats_failed_git_metadata_as_not_deployed(target):
-    meta = target / "infrastructure/blue/meta"
-    meta.mkdir()
-    (meta / "commit").write_text("ERROR\n")
+def test_status_shows_unknown_when_git_could_not_tell(deployed_staging):
+    meta = deployed_staging / "infrastructure/blue/meta"
+    (meta / "commit").write_text("unknown\n")
 
-    assert status_lines(make_context(target))[3] == "staging:     -> blue, not deployed"
+    line = status_lines(make_context(deployed_staging))[3]
+
+    assert line == "staging:     -> blue, commit unknown (unknown)"

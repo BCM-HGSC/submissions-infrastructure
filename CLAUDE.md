@@ -28,7 +28,7 @@ scripts/iac deploy --target TARGET_DIR
 scripts/iac deploy --target TARGET_DIR --dry-run     # changes nothing
 scripts/iac deploy --target TARGET_DIR --tier blue --overwrite
 
-# Swap production and staging
+# Swap production and staging; run it again to roll back
 # Example: if production -> blue and staging -> green, after promotion:
 #          production -> green and staging -> blue
 scripts/iac promote --target TARGET_DIR
@@ -37,8 +37,7 @@ scripts/iac promote --target TARGET_DIR
 scripts/iac status --target TARGET_DIR
 ```
 
-`scripts/bootstrap`, `scripts/bootstrap-engine`, and `scripts/deploy` are
-deprecated shims that translate their arguments and call `iac`.
+`iac` is the only entry point. There are no other scripts to run.
 
 ### AWS Tools Installation
 ```bash
@@ -50,8 +49,7 @@ bash scripts/install-aws-tools.sh
 
 Detailed documentation is in the `docs/` directory:
 - **docs/iac.md**: The `iac` command: target resolution, subcommands, exit codes
-- **docs/promote_staging.md**: Blue/green promotion workflow documentation
-- **docs/bootstrap.md**, **docs/deploy.md**: The deprecated shims and how their arguments map to `iac`
+- **docs/promote.md**: What promotion checks, atomicity, and rollback
 
 ## Architecture
 
@@ -62,31 +60,38 @@ The system creates a hierarchical structure:
   - **engine_home/**: Management engine directory
     - **engine_a/**, **engine_b/**: Blue/green engine environments
     - **engine**: Symlink to active engine
-    - **micromamba**: Conda package installer
+    - **micromamba**: Pinned release, checksum-verified (`scripts/iac_cli/micromamba.py`)
   - **infrastructure/**: Deployment tiers
     - **blue/**, **green/**: Environment directories
     - **production**, **staging**: Symlinks to active tiers
-  - **user_envs/**: Individual user environments
+  - **logs/**: One mamba log per deployed environment
+  - **users/**: Per-user conda environments, package caches, and pip caches
 
 ### Engine System
 The engine is a self-contained conda environment containing deployment tools:
-- Python 3.13 with conda, mamba, pip
+- Python 3.13 or later with conda, mamba, pip, and git
 - Rich for terminal output, PyYAML for configuration
 - Blue/green rotation for zero-downtime engine updates
 - Defined by `resources/defs/special/engine.yaml`
 
 ### Configuration Management
 Environment definitions stored in `resources/defs/`:
-- **special/**: Engine and special-purpose environments
-- **universal/**: Cross-platform environments (conda, python, unix)
-- **linux/**, **mac/**: Platform-specific environments
-- **experimental/**: Testing environments
+- **special/**: The engine. Never deployed to a tier.
+- **universal/**: Deployed everywhere (conda, experimental, python, unix)
+- **linux/**, **mac/**: Deployed on that platform only
+
+A tier gets every `universal/*.yaml` plus its platform's file. Each becomes
+an environment named for the file.
 
 ### Deployment Process
 1. Bootstrap creates basic directory structure
 2. Engine environment installed via micromamba
 3. Engine deploys infrastructure tiers using YAML definitions
 4. Blue/green rotation allows safe updates
+
+A tier is "deployed" when it has `meta/commit` and `etc/profile.sh`. The
+engine removes `meta/` before it changes a tier and writes `meta/commit`
+last; `iac promote` refuses a tier without it.
 
 ### Environment Variables
 
@@ -98,18 +103,18 @@ When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment vari
 - **IAC_PARENT**: Path to the TARGET_DIR (e.g., `/path/to/target`)
 - **IAC_ORIGINAL_PATH**: Original PATH before modifications by the infrastructure
 - **CONDARC**: Path to the tier's conda configuration file (e.g., `$IAC_TIER_DIR/etc/condarc`)
+- **PIP_CACHE_DIR**: `$IAC_PARENT/users/$USER/pip_cache`, unless the user already set it
 
 **Usage**:
 - Interactive users can view these variables with the `iac_dump_vars` shell function
 - `scripts/iac` uses `IAC_PARENT` as its default target, so `--target` is unnecessary in a shell that has sourced a tier
-- `scripts/promote_staging`, when run directly, requires `IAC_TIER_DIR`; `scripts/iac promote` supplies it
 - Users switch between tiers using `iac_load <tier_name>` (e.g., `iac_load staging`)
 
 ### Code Architecture
 
 **Two Python packages under `scripts/`**:
-- `scripts/iac_cli/`: the `iac` command. Standard library only, because it runs under uv before any engine exists. `cli.py` (parsing, dispatch), `config.py` (target resolution), `bootstrap.py` (layout, engine install and rotation), `tiers.py` (deploy, promote, status), `exit_codes.py` (the one exit-code table), `common.py` (`Context`, `IacError`, command running). Never import `rich` or `yaml` here.
-- `scripts/engine/`: the deployer. Runs under the engine's own Python (which has rich and PyYAML), started by `iac deploy` through `scripts/sanitize-command`.
+- `scripts/iac_cli/`: the `iac` command. Standard library only, because it runs under uv before any engine exists. `cli.py` (parsing, dispatch), `config.py` (target resolution), `bootstrap.py` (layout, tier links, engine install and rotation), `micromamba.py` (pinned, checksum-verified fetch), `tiers.py` (deploy, promote, status), `exit_codes.py` (the one exit-code table), `common.py` (`Context`, `IacError`, `sanitized_env`, command running). Never import `rich` or `yaml` here.
+- `scripts/engine/`: the deployer. Runs under the engine's own Python (which has rich and PyYAML), started by `iac deploy` with the environment from `sanitized_env()`.
 
 Subcommand functions take a `Context`; tests inject a fake `run` callable instead of running micromamba.
 
@@ -126,6 +131,8 @@ Subcommand functions take a `Context`; tests inject a fake `run` callable instea
 2. **PATH**: `shutil.which("mamba")`, a fallback for development.
 
 Tests inject a location with the `mamba_path` parameter of `deploy_tier()` or by patching `find_mamba`.
+
+`find_git()` does the same for the git that writes `meta/`: the engine's own, then `PATH`.
 
 ## Development Workflow
 
@@ -145,7 +152,7 @@ Tests inject a location with the `mamba_path` parameter of `deploy_tier()` or by
 - Per-environment mamba logs are in `TARGET_DIR/logs/`
 - `iac deploy` exits 4 if any environment fails to install
 - YAML definitions are automatically validated before deployment
-- Required binaries (curl, tar, git) are checked before bootstrap with helpful error messages
+- `iac status` shows the commit deployed in each tier
 
 ## Testing
 
@@ -158,10 +165,10 @@ pytest tests/unit/
 # Run specific test file
 pytest tests/unit/test_iac_cli.py -v
 
-# Run integration tests (requires --run-integration flag)
+# Run integration tests: builds a real engine (network, a few minutes)
 pytest tests/integration/ --run-integration
 
-# Run E2E tests (requires real mamba and --run-e2e flag)
+# Run E2E tests: deploys every environment twice (network, 20+ minutes)
 pytest tests/e2e/ --run-e2e
 
 # Run with coverage
@@ -171,24 +178,27 @@ pytest --cov=scripts/engine --cov-report=html
 ### Test Organization
 
 **Unit Tests** (`tests/unit/`):
-- Fast, isolated tests using mocks
-- No external dependencies or network calls
-- Test individual functions and error conditions
-- Comprehensive test coverage including argument parsing, path validation, blue/green logic, error handling, environment definitions, YAML validation, binary availability checks, disk space checks, symlink validation, and path traversal protection
+- Fast, no network. Subcommands run against `tmp_path` with a fake `run`
+  callable in place of curl, micromamba, and the engine.
+- `test_iac_scripts.py` starts the real `scripts/iac` through uv.
+- `test_profile.py` sources `resources/etc/profile.sh` in a bare bash and a
+  bare `zsh -f` against a stand-in tier.
 
 **Integration Tests** (`tests/integration/`):
-- Test complete workflows with actual script execution
-- Marked with `@pytest.mark.integration`
-- Require `--run-integration` flag to execute
-- May require network access or take longer to run
+- Marked with `@pytest.mark.integration`; require `--run-integration`
+- Bootstrap one real target through `scripts/iac`, then check the layout,
+  the pinned micromamba, a dry-run deploy, and engine rotation
+- A failed bootstrap fails the tests; it does not skip them
 
 **End-to-End Tests** (`tests/e2e/`):
-- Test complete deployment workflows using real mamba installations and YAML environment definitions
-- Marked with `@pytest.mark.e2e`
-- Require `--run-e2e` flag to execute
-- Require real mamba/micromamba in PATH
-- May take 5-10+ minutes for comprehensive tests
-- Validate complete bootstrap → deploy → promote workflows with real resources
+- Marked with `@pytest.mark.e2e`; require `--run-e2e`
+- One test: bootstrap, deploy, source the tier, promote, deploy again,
+  `--keep`, roll back, all through `scripts/iac`
+
+Both real suites start `iac` through `run_iac()` in `tests/conftest.py`,
+which removes `IAC_PARENT` and every `GIT_*` variable. Tests must never run
+`git config` or `git init`: under a git hook `GIT_DIR` points at this
+repository, which is how a test once rewrote this repo's own author.
 
 ### Test Fixtures
 
@@ -196,6 +206,7 @@ Key fixtures in `tests/conftest.py`:
 - `tmp_target_dir`: Creates temporary deployment directory structure
 - `mock_filesystem`: MockFileSystem for testing file operations
 - `mock_command_runner`: MockCommandRunner for testing subprocess calls
+- `run_iac()` (a function, not a fixture): the real `scripts/iac` in a clean environment
 - `sample_env_yaml`: Sample environment definition for testing
 
 ### Code Quality

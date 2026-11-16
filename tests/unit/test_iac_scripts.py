@@ -1,5 +1,5 @@
 """
-Run the real entry points: scripts/iac and the deprecated shims.
+Run the real entry point, scripts/iac.
 
 These start subprocesses through uv. They need no network, no engine, and
 no target.
@@ -85,63 +85,4 @@ def test_iac_bootstrap_dry_run_creates_nothing(run_script, tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert "[DRY RUN]" in result.stderr
-    assert not target.exists()
-
-
-# Deprecated shims
-
-
-@pytest.mark.parametrize(
-    ("script", "subcommand"),
-    [("deploy", "deploy"), ("bootstrap", "bootstrap"), ("bootstrap-engine", "engine")],
-)
-def test_shim_help_works_without_a_target(run_script, script, subcommand):
-    result = run_script(script, "--help")
-
-    assert result.returncode == 0, result.stderr
-    assert f"usage: iac {subcommand}" in result.stdout
-    assert "deprecated" in result.stderr
-
-
-def test_deploy_shim_without_arguments_is_a_usage_error(run_script):
-    result = run_script("deploy")
-
-    assert result.returncode == 1
-    assert "No target directory" in result.stderr
-
-
-def test_deploy_shim_translates_old_arguments(run_script, tmp_path):
-    # --force is accepted and translated; the run then stops for lack of
-    # an engine, which shows the target was understood.
-    result = run_script("deploy", str(tmp_path), "staging", "--force", "--dry-run")
-
-    assert result.returncode == 2
-    assert f"No engine at {tmp_path}/engine_home/engine" in result.stderr
-
-
-def test_bootstrap_shim_refuses_force(run_script, tmp_path):
-    target = tmp_path / "deployment"
-
-    result = run_script("bootstrap", "--force", str(target))
-
-    assert result.returncode == 1
-    assert "no longer erases" in result.stderr
-    assert not target.exists()
-
-
-@pytest.mark.parametrize("script", ["deploy", "bootstrap", "bootstrap-engine"])
-def test_shims_reject_extra_arguments(run_script, script):
-    result = run_script(script, "one", "two", "three")
-
-    assert result.returncode == 1
-    assert "Too many arguments" in result.stderr
-
-
-def test_bootstrap_engine_shim_dry_run(run_script, tmp_path):
-    target = tmp_path / "deployment"
-
-    result = run_script("bootstrap-engine", "--dry-run", "-y", "--force", str(target))
-
-    assert result.returncode == 0, result.stderr
-    assert "micromamba env create" in result.stderr
     assert not target.exists()

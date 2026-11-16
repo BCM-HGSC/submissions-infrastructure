@@ -6,7 +6,7 @@ from pathlib import Path
 import tomllib
 
 from .common import IacError
-from .exit_codes import INVALID_INPUT, USAGE
+from .exit_codes import INVALID_STATE, USAGE
 
 CONFIG_KEY = "iac_parent"
 ENV_VAR = "IAC_PARENT"
@@ -61,13 +61,13 @@ def read_config_value(config_file: Path) -> str | None:
         with config_file.open("rb") as fin:
             data = tomllib.load(fin)
     except (OSError, tomllib.TOMLDecodeError) as e:
-        raise IacError(INVALID_INPUT, f"Cannot read {config_file}: {e}") from e
+        raise IacError(INVALID_STATE, f"Cannot read {config_file}: {e}") from e
     value = data.get(CONFIG_KEY)
     if value is None:
         return None
     if not isinstance(value, str) or not value:
         raise IacError(
-            INVALID_INPUT, f"{CONFIG_KEY} in {config_file} must be a non-empty string"
+            INVALID_STATE, f"{CONFIG_KEY} in {config_file} must be a non-empty string"
         )
     return value
 

@@ -1,15 +1,18 @@
 """Tests for `iac bootstrap` and `iac engine` with a fake micromamba."""
 
 from collections import namedtuple
+import hashlib
+import os
 from pathlib import Path
 
 import pytest
 
 from scripts.iac_cli import bootstrap as bootstrap_module
+from scripts.iac_cli import micromamba as micromamba_module
 from scripts.iac_cli.bootstrap import bootstrap, install_engine, next_engine_name
 from scripts.iac_cli.common import Context, IacError
 from scripts.iac_cli.exit_codes import (
-    INVALID_INPUT,
+    INVALID_STATE,
     MISSING_DEPENDENCY,
     OPERATION_FAILED,
 )
@@ -18,21 +21,24 @@ SCRIPTS_DIR = Path(__file__).parent.parent.parent / "scripts"
 DiskUsage = namedtuple("DiskUsage", "total used free")
 
 
-class FakeRunner:
-    """Stands in for fetch-micromamba and micromamba."""
+MICROMAMBA_CONTENT = b"#!/bin/sh\n"
 
-    def __init__(self, target: Path):
-        self.target = target
+
+class FakeRunner:
+    """Stands in for curl and micromamba."""
+
+    def __init__(self):
         self.calls: list[list[str]] = []
+        self.envs: list[dict[str, str] | None] = []
+        self.download = MICROMAMBA_CONTENT
         self.fail_create = False
         self.fail_version = False
 
-    def __call__(self, argv, **_kwargs) -> int:
+    def __call__(self, argv, *, env=None, **_kwargs) -> int:
         self.calls.append(argv)
-        if argv[0].endswith("fetch-micromamba"):
-            micromamba = self.target / "engine_home/micromamba"
-            micromamba.write_text("#!/bin/sh\n")
-            micromamba.chmod(0o755)
+        self.envs.append(env)
+        if argv[0].endswith("curl"):
+            Path(argv[argv.index("--output") + 1]).write_bytes(self.download)
         elif argv[-1] == "--version":
             return 1 if self.fail_version else 0
         elif "create" in argv:
@@ -46,6 +52,10 @@ class FakeRunner:
     def creates(self) -> list[list[str]]:
         return [argv for argv in self.calls if "create" in argv]
 
+    @property
+    def fetches(self) -> list[list[str]]:
+        return [argv for argv in self.calls if argv[0].endswith("curl")]
+
 
 @pytest.fixture
 def target(tmp_path: Path) -> Path:
@@ -53,13 +63,19 @@ def target(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def runner(target: Path) -> FakeRunner:
-    return FakeRunner(target)
+def runner() -> FakeRunner:
+    return FakeRunner()
 
 
 @pytest.fixture(autouse=True)
-def no_fetch_requirements(monkeypatch):
-    monkeypatch.setattr(bootstrap_module, "FETCH_REQUIREMENTS", ())
+def pinned_to_fake_micromamba(monkeypatch, tmp_path):
+    """Pin the checksum of the fake download, whatever this platform is."""
+    curl = tmp_path / "curl"
+    curl.write_text("")
+    monkeypatch.setattr(micromamba_module, "CURL", curl)
+    digest = hashlib.sha256(MICROMAMBA_CONTENT).hexdigest()
+    monkeypatch.setattr(micromamba_module, "current_platform", lambda: "test")
+    monkeypatch.setattr(micromamba_module, "SHA256", {"test": digest})
 
 
 def make_context(target: Path, runner: FakeRunner, *, dry_run=False) -> Context:
@@ -120,6 +136,28 @@ def test_bootstrap_restores_staging_opposite_production(target, runner):
     assert (infrastructure / "staging").readlink() == Path("green")
 
 
+def test_bootstrap_repairs_links_on_the_same_color(target, runner):
+    """An interrupted promotion leaves both links on the promoted color."""
+    infrastructure = target / "infrastructure"
+    (infrastructure / "blue").mkdir(parents=True)
+    (infrastructure / "production").symlink_to("blue")
+    (infrastructure / "staging").symlink_to("blue")
+
+    bootstrap(make_context(target, runner), offline=False, skip_disk_check=True)
+
+    assert (infrastructure / "production").readlink() == Path("blue")
+    assert (infrastructure / "staging").readlink() == Path("green")
+
+
+def test_bootstrap_refuses_a_tier_link_that_is_a_directory(target, runner):
+    (target / "infrastructure/production").mkdir(parents=True)
+
+    with pytest.raises(IacError) as exc_info:
+        bootstrap(make_context(target, runner), offline=False, skip_disk_check=True)
+
+    assert exc_info.value.code == INVALID_STATE
+
+
 def test_bootstrap_dry_run_creates_nothing(target, runner):
     ctx = make_context(target, runner, dry_run=True)
 
@@ -146,9 +184,27 @@ def test_engine_rotates_between_slots(target, runner):
 
 
 def test_engine_passes_offline(target, runner):
-    install_engine(make_context(target, runner), offline=True, skip_disk_check=True)
+    ctx = make_context(target, runner)
+    install_engine(ctx, offline=False, skip_disk_check=True)  # fetches micromamba
 
-    assert runner.creates[0][-1] == "--offline"
+    install_engine(ctx, offline=True, skip_disk_check=True)
+
+    assert runner.creates[0][-1] != "--offline"
+    assert runner.creates[1][-1] == "--offline"
+
+
+def test_engine_is_built_in_a_sanitized_environment(target, runner, monkeypatch):
+    monkeypatch.setenv("PYTHONPATH", "/somewhere/else")
+    monkeypatch.setenv("CONDA_PREFIX", "/somewhere/conda")
+
+    install_engine(make_context(target, runner), offline=False, skip_disk_check=True)
+
+    env = runner.envs[runner.calls.index(runner.creates[0])]
+    assert env["HOME"] == str(target / "engine_home")
+    assert env["PATH"] == "/usr/bin:/bin"
+    assert env["CONDA_PKGS_DIRS"] == str(target / "conda_package_cache")
+    assert "PYTHONPATH" not in env
+    assert "CONDA_PREFIX" not in env
 
 
 def test_failed_engine_install_keeps_the_active_engine(target, runner):
@@ -171,7 +227,7 @@ def test_engine_link_that_is_a_directory_is_refused(target, runner):
             make_context(target, runner), offline=False, skip_disk_check=True
         )
 
-    assert exc_info.value.code == INVALID_INPUT
+    assert exc_info.value.code == INVALID_STATE
     assert runner.creates == []
 
 
@@ -185,6 +241,92 @@ def test_micromamba_that_does_not_run_is_a_missing_dependency(target, runner):
 
     assert exc_info.value.code == MISSING_DEPENDENCY
     assert runner.creates == []
+
+
+# micromamba
+
+
+def test_micromamba_is_fetched_once(target, runner):
+    ctx = make_context(target, runner)
+
+    install_engine(ctx, offline=False, skip_disk_check=True)
+    install_engine(ctx, offline=False, skip_disk_check=True)
+
+    micromamba = target / "engine_home/micromamba"
+    assert micromamba.read_bytes() == MICROMAMBA_CONTENT
+    assert os.access(micromamba, os.X_OK)
+    assert len(runner.fetches) == 1
+    assert micromamba_module.VERSION in runner.fetches[0][-1]
+
+
+def test_micromamba_from_another_release_is_replaced(target, runner):
+    micromamba = target / "engine_home/micromamba"
+    micromamba.parent.mkdir(parents=True)
+    micromamba.write_bytes(b"an older release\n")
+
+    install_engine(make_context(target, runner), offline=False, skip_disk_check=True)
+
+    assert micromamba.read_bytes() == MICROMAMBA_CONTENT
+
+
+def test_download_with_the_wrong_checksum_is_refused(target, runner):
+    runner.download = b"not what was pinned\n"
+
+    with pytest.raises(IacError) as exc_info:
+        install_engine(
+            make_context(target, runner), offline=False, skip_disk_check=True
+        )
+
+    assert exc_info.value.code == MISSING_DEPENDENCY
+    assert "Checksum mismatch" in str(exc_info.value)
+    assert list((target / "engine_home").iterdir()) == []
+    assert runner.creates == []
+
+
+def test_offline_uses_the_micromamba_already_there(target, runner):
+    micromamba = target / "engine_home/micromamba"
+    micromamba.parent.mkdir(parents=True)
+    micromamba.write_bytes(b"an older release\n")
+
+    install_engine(make_context(target, runner), offline=True, skip_disk_check=True)
+
+    assert runner.fetches == []
+    assert micromamba.read_bytes() == b"an older release\n"
+
+
+def test_offline_without_micromamba_is_a_missing_dependency(target, runner):
+    with pytest.raises(IacError) as exc_info:
+        install_engine(make_context(target, runner), offline=True, skip_disk_check=True)
+
+    assert exc_info.value.code == MISSING_DEPENDENCY
+    assert runner.calls == []
+
+
+@pytest.mark.parametrize(
+    ("system", "machine", "expected"),
+    [
+        ("Linux", "x86_64", "linux-64"),
+        ("Linux", "aarch64", "linux-aarch64"),
+        ("Darwin", "arm64", "osx-arm64"),
+    ],
+)
+def test_platform_names(monkeypatch, system, machine, expected):
+    monkeypatch.undo()  # the autouse fixture replaced current_platform
+    monkeypatch.setattr(micromamba_module.platform, "system", lambda: system)
+    monkeypatch.setattr(micromamba_module.platform, "machine", lambda: machine)
+
+    assert micromamba_module.current_platform() == expected
+    assert expected in micromamba_module.SHA256
+
+
+def test_unknown_platform_is_a_missing_dependency(monkeypatch):
+    monkeypatch.undo()
+    monkeypatch.setattr(micromamba_module.platform, "system", lambda: "Plan9")
+
+    with pytest.raises(IacError) as exc_info:
+        micromamba_module.current_platform()
+
+    assert exc_info.value.code == MISSING_DEPENDENCY
 
 
 def test_low_disk_space_stops_bootstrap(target, runner, monkeypatch):

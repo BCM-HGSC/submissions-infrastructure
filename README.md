@@ -62,8 +62,6 @@ TARGET_DIR
 │   │   ├── share
 │   │   ├── shell
 │   │   └── ssl
-│   ├── Library
-│   │   └── Caches
 │   └── micromamba
 └── infrastructure
     ├── blue
@@ -93,14 +91,11 @@ from `IAC_PARENT` or a config file; see [docs/iac.md](docs/iac.md).
 - `iac bootstrap`: create whatever a deployment is missing. Never removes anything.
 - `iac engine`: replace the "engine" - the system used to create tiers.
 - `iac deploy`: create a "tier" - a complete collection of software. Deploys to staging unless `--tier` says otherwise.
-- `iac promote`: switch the symlinks between production and staging.
+- `iac promote`: switch the symlinks between production and staging. Run it again to roll back.
 - `iac status`: show the engine, the tier links, and what is deployed.
 
-Helpers that `iac` calls: `scripts/fetch-micromamba`, `scripts/sanitize-command`,
-`scripts/promote_staging`, and the `scripts/engine` package.
-
-`scripts/bootstrap`, `scripts/bootstrap-engine`, and `scripts/deploy` are
-deprecated shims for `iac` and will be removed.
+`iac` is the only entry point. Its own code is `scripts/iac_cli`; the
+deployer it starts under the engine's Python is `scripts/engine`.
 
 ## Environment Variables
 
@@ -112,6 +107,7 @@ When users source the tier's profile script (`$IAC_TIER_DIR/etc/profile.sh`), th
 - **IAC_PARENT**: Path to the TARGET_DIR (e.g., `/path/to/target`)
 - **IAC_ORIGINAL_PATH**: Original PATH before modifications by the infrastructure
 - **CONDARC**: Path to the tier's conda configuration file (e.g., `$IAC_TIER_DIR/etc/condarc`)
+- **PIP_CACHE_DIR**: `$IAC_PARENT/users/$USER/pip_cache`, unless already set
 
 To view these variables in an interactive shell, use the `iac_dump_vars` function:
 

@@ -274,24 +274,3 @@ def test_mock_filesystem_readlink():
     filesystem.symlinks[link] = target
 
     assert filesystem.readlink(link) == target
-
-
-def test_error_exit_codes_are_distinct():
-    """Test that different error conditions have distinct exit codes."""
-    # This ensures we can distinguish between different error types
-    exit_codes = {
-        "mamba_missing": 2,
-        "target_not_directory": 3,
-        "production_protection": 4,
-    }
-
-    # All exit codes should be unique
-    assert len(exit_codes) == len(set(exit_codes.values()))
-
-    # All should be non-zero
-    assert all(code > 0 for code in exit_codes.values())
-
-
-# Note: Tests for --keep and --force modes are better suited for integration tests
-# since they require actual filesystem operations even in dry-run mode (log file creation).
-# Error handling for these modes is already covered by the tests above.

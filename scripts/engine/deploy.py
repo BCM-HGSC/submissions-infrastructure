@@ -64,7 +64,7 @@ def deploy_tier(
     if (
         filesystem.exists(tier_path)
         and not keep
-        and (match(r"^(dev.*|test.*|staging)$", tier) or mode == "force")
+        and (match(r"^(dev.*|test.*|staging)$", tier) or mode == "overwrite")
     ):
         if dry_run:
             info(f"[DRY RUN] Would remove and recreate {tier_path}")
@@ -81,13 +81,15 @@ def deploy_tier(
         filesystem=filesystem,
         mamba_binary=mamba_binary,
     )
-    if keep and not dry_run:
-        deployer.info()
+    if not dry_run:
+        # meta/ marks a tier as deployed, so it goes first and comes back last.
+        deployer.clear_meta()
+        if keep:
+            deployer.info()
     failed = deployer.deploy_conda_environments(worklist)
     if dry_run:
         return
     if failed:
-        # Stop before writing meta/, which marks a tier as deployed.
         critical(f"Failed to deploy environments: {', '.join(failed)}")
         sys.exit(4)
     deployer.deploy_bin()
@@ -330,20 +332,41 @@ class MambaDeployer:
             dirs_exist_ok=True,
         )
 
-    def store_git_info(self) -> None:
-        self.filesystem.mkdir(self.meta_dir, exist_ok=True)
-        self.write_meta("commit", ["rev-parse", "HEAD"])
-        self.write_meta("tree_hash", ["rev-parse", "HEAD:"])
-        (
-            self.write_meta("description", ["describe", "--dirty"])
-            or self.write_meta("description", ["describe", "--dirty", "--tags"])
-            or self.write_meta("description", ["describe", "--dirty", "--all"])
-        )
+    def clear_meta(self) -> None:
+        if self.filesystem.exists(self.meta_dir):
+            self.filesystem.rmtree(self.meta_dir)
 
-    def write_meta(self, dest_name: str, subcommand: list[str]) -> bool:
-        command_prefix = ["git", "-C", str(CODE_ROOT_DIR)]
-        command = command_prefix + subcommand
-        result = self.command_runner.run(command, stdout=PIPE, stderr=DEVNULL)
-        dest_path = self.meta_dir / dest_name
-        self.filesystem.write_bytes(dest_path, result.stdout or b"ERROR\n")
-        return result.returncode == 0
+    def store_git_info(self) -> None:
+        """Record what was deployed. meta/commit is written last."""
+        self.filesystem.mkdir(self.meta_dir, exist_ok=True)
+        self.write_meta(
+            "description",
+            ["describe", "--dirty"],
+            ["describe", "--dirty", "--tags"],
+            ["describe", "--dirty", "--all"],
+        )
+        self.write_meta("tree_hash", ["rev-parse", "HEAD:"])
+        self.write_meta("commit", ["rev-parse", "HEAD"])
+
+    def write_meta(self, dest_name: str, *subcommands: list[str]) -> None:
+        """Write the output of the first git subcommand that succeeds."""
+        # The checkout may belong to another member of the team.
+        prefix = [find_git(), "-c", f"safe.directory={CODE_ROOT_DIR}"]
+        prefix += ["-C", str(CODE_ROOT_DIR)]
+        content = b""
+        for subcommand in subcommands:
+            result = self.command_runner.run(
+                prefix + subcommand, stdout=PIPE, stderr=DEVNULL
+            )
+            if result.returncode == 0 and result.stdout:
+                content = result.stdout
+                break
+        if not content:
+            warning(f"git could not determine {dest_name}; recording unknown")
+        self.filesystem.write_bytes(self.meta_dir / dest_name, content or b"unknown\n")
+
+
+def find_git() -> Path | str:
+    """The engine's own git, or whatever git is on PATH during development."""
+    engine_git = Path(sys.executable).parent / "git"
+    return engine_git if engine_git.is_file() else "git"

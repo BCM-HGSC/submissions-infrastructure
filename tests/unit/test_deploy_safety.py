@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from scripts.engine.command_runner import MockCommandRunner
-from scripts.engine.deploy import deploy_tier, find_mamba
+from scripts.engine.deploy import deploy_tier, find_git, find_mamba
 from scripts.engine.filesystem import RealFileSystem
 
 
@@ -57,7 +57,7 @@ def test_dry_run_changes_nothing(real_target, fake_mamba, sample_env_yaml, enoug
     assert runner.get_call_count() == 0
 
 
-def test_dry_run_with_force_changes_nothing(
+def test_dry_run_with_overwrite_changes_nothing(
     real_target, fake_mamba, sample_env_yaml, enough_disk
 ):
     marker = real_target / "infrastructure" / "blue" / "marker"
@@ -69,7 +69,7 @@ def test_dry_run_with_force_changes_nothing(
         "blue",
         dry_run=True,
         offline=False,
-        mode="force",
+        mode="overwrite",
         filesystem=RealFileSystem(),
         command_runner=MockCommandRunner(),
         env_yamls=[sample_env_yaml],
@@ -100,6 +100,93 @@ def test_failed_environment_exits_nonzero(
     assert exc_info.value.code == 4
     # A tier with failed environments must not look deployed.
     assert not (real_target / "infrastructure" / "blue" / "meta").exists()
+
+
+def test_failed_keep_deploy_clears_the_deployed_marker(
+    real_target, fake_mamba, sample_env_yaml, enough_disk
+):
+    """--keep leaves the tier in place, so a stale meta/ must not survive."""
+    meta = real_target / "infrastructure" / "blue" / "meta"
+    meta.mkdir()
+    (meta / "commit").write_text("from an earlier deploy\n")
+    runner = MockCommandRunner()
+    runner.set_return_value(returncode=1)
+
+    with pytest.raises(SystemExit):
+        deploy_tier(
+            real_target,
+            "staging",
+            dry_run=False,
+            offline=False,
+            mode="keep",
+            filesystem=RealFileSystem(),
+            command_runner=runner,
+            env_yamls=[sample_env_yaml],
+            mamba_path=fake_mamba,
+        )
+
+    assert not meta.exists()
+
+
+def test_successful_deploy_records_git_metadata(
+    real_target, fake_mamba, sample_env_yaml, enough_disk
+):
+    runner = MockCommandRunner()
+    runner.set_return_value(returncode=0, stdout=b"0123abcd\n")
+
+    deploy_tier(
+        real_target,
+        "staging",
+        dry_run=False,
+        offline=False,
+        filesystem=RealFileSystem(),
+        command_runner=runner,
+        env_yamls=[sample_env_yaml],
+        mamba_path=fake_mamba,
+    )
+
+    meta = real_target / "infrastructure" / "blue" / "meta"
+    assert (meta / "commit").read_text() == "0123abcd\n"
+    assert (meta / "tree_hash").read_text() == "0123abcd\n"
+    assert (meta / "description").read_text() == "0123abcd\n"
+    git_calls = [call["args"] for call in runner.calls if "rev-parse" in call["args"]]
+    assert all(args[1] == "-c" for args in git_calls)
+    assert all(args[2].startswith("safe.directory=") for args in git_calls)
+
+
+def test_git_failure_is_recorded_as_unknown(
+    real_target, fake_mamba, sample_env_yaml, enough_disk
+):
+    """The mock returns no output, as git does outside a repository."""
+    deploy_tier(
+        real_target,
+        "staging",
+        dry_run=False,
+        offline=False,
+        filesystem=RealFileSystem(),
+        command_runner=MockCommandRunner(),
+        env_yamls=[sample_env_yaml],
+        mamba_path=fake_mamba,
+    )
+
+    meta = real_target / "infrastructure" / "blue" / "meta"
+    assert (meta / "commit").read_text() == "unknown\n"
+    assert (meta / "description").read_text() == "unknown\n"
+
+
+def test_find_git_prefers_the_engine(tmp_path, monkeypatch):
+    engine_bin = tmp_path / "engine" / "bin"
+    engine_bin.mkdir(parents=True)
+    (engine_bin / "git").write_text("")
+    monkeypatch.setattr(sys, "executable", str(engine_bin / "python3"))
+
+    assert find_git() == engine_bin / "git"
+
+
+def test_find_git_falls_back_to_path(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "nowhere" / "python3"))
+
+    assert find_git() == "git"
 
 
 def test_all_environments_attempted_after_a_failure(

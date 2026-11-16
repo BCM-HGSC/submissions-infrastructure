@@ -64,7 +64,7 @@ def parse_command_line(argv: list[str] | None = None) -> Namespace:
     mode.add_argument(
         "--overwrite",
         action="store_const",
-        const="force",
+        const="overwrite",
         dest="mode",
         help="replace the contents of a tier that is not normally replaced",
     )

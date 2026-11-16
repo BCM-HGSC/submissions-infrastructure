@@ -66,7 +66,7 @@ def test_parse_overwrite_flag(tmp_path):
     """Test that --overwrite replaces the tier but keeps the disk check."""
     args = parse_command_line([str(tmp_path), "staging", "--overwrite"])
 
-    assert args.mode == "force"
+    assert args.mode == "overwrite"
     assert args.skip_disk_check is False
 
 

@@ -10,7 +10,10 @@ reading the code and need a failing test first.
 
 ## Decisions
 
-Decided 2026-11-16: the recommendation was accepted for all four.
+Decided 2026-11-16: the recommendation was accepted for all four. Later the
+same day D3 was reversed: the installed base is three or four stale
+deployments and at most two other users, so the old entry points were
+removed outright, and nothing has to stay compatible with the old CLI.
 
 - [x] **D1. Language of the top-level `iac` command.** Recommended: a
   stdlib-only `uv run --script` Python file, which makes uv a prerequisite
@@ -85,9 +88,11 @@ Python so the old scripts could become shims. Covered by
 `tests/unit/test_iac_*.py`, including subprocess tests of the real entry
 points, and tried by hand against a stand-in engine with a fake mamba.
 
-**Not verified:** a real `iac bootstrap` or `iac engine`, which downloads
-micromamba and builds the engine. Run one on a scratch target before
-relying on it, and run the integration and E2E suites.
+Verified 2026-11-16 on a scratch target on macOS arm64: `iac bootstrap`
+built the engine and created the links; a second bootstrap changed nothing;
+`iac engine` rotated to `engine_b`; `iac deploy --dry-run` logged a
+`mamba_binary` inside `engine_home/engine/`; and a full `iac deploy`
+installed every environment. See "Verification" at the end.
 
 - [x] Subcommands: `bootstrap`, `engine` (rotate), `deploy [--tier staging]`,
   `promote`, `status`.
@@ -105,103 +110,104 @@ relying on it, and run the integration and E2E suites.
   `iac --help`. Usage errors exit 1, not argparse's 2. The engine still
   uses literal 2, 3, 4 with the same meanings.
 - [x] `iac status`.
-- [x] D3: `bootstrap`, `bootstrap-engine`, `deploy` are shims.
-  `promote_staging` is not yet one; `iac promote` runs it under the
-  engine's Python with `IAC_TIER_DIR` supplied. Section 4 finishes this.
-- [ ] Remove the shims after one release.
+- [x] D3 reversed: `bootstrap`, `bootstrap-engine`, `deploy`, and
+  `promote_staging` are deleted. `iac` is the only entry point.
 
 ## 4. Promotion (issue #24)
 
-- [ ] `promote_staging --help` crashes with
-  `ModuleNotFoundError: No module named 'yaml'` **(ran)**: it runs under
-  the caller's `python3` and imports the engine validators. Promotion needs
-  only the standard library; split the symlink validators from the YAML
-  ones.
-- [ ] Take the target from `iac` (section 3) instead of requiring
-  `IAC_TIER_DIR`. This is the fix proposed in the #24 comment. Partly
-  done: `iac promote` works without `IAC_TIER_DIR`, but only by delegating
-  to `promote_staging`, so it needs an engine. Move the logic into
-  `iac_cli` and make `promote_staging` a shim.
-- [ ] Swap symlinks atomically (temp link plus rename). Today production is
-  unlinked first, leaving a window, and a crash, with no production.
-- [ ] Refuse to promote a tier that was never deployed (no `meta/commit` or
-  `etc/profile.sh`). After a fresh bootstrap an empty staging can be
-  promoted.
-- [ ] A dangling `production` symlink skips validation and then fails with a
-  `FileExistsError` traceback **(read)**.
-- [ ] Remove the `infrastructure_path=` debug print.
-- [ ] Document rollback: promoting again swaps back, valid only until the
-  next deploy to staging.
+Done 2026-11-16. Promotion is `promote()` in `scripts/iac_cli/tiers.py`,
+standard library only, covered by `tests/unit/test_iac_cli.py`.
+
+- [x] `promote_staging --help` crashed for lack of PyYAML. The script is
+  gone; `iac promote` needs no engine.
+- [x] The target comes from `iac`, not `IAC_TIER_DIR`.
+- [x] Each link is swapped atomically, production first. An interruption
+  leaves both links on one color, which `iac bootstrap` repairs.
+- [x] A tier that was never deployed is refused. "Deployed" means
+  `meta/commit` and `etc/profile.sh` exist; the engine now removes `meta/`
+  before it changes a tier, so a failed `--keep` deploy no longer leaves a
+  stale marker.
+- [x] A dangling `production` link is replaced; a link to anything but
+  `blue` or `green` is refused with a message, not a traceback.
+- [x] The `infrastructure_path=` debug print went with the script.
+- [x] Rollback is documented in `docs/promote.md`.
 
 ## 5. Bootstrap and engine
+
+Done 2026-11-16.
 
 - [x] `bootstrap` rotated the engine before checking that `infrastructure`
   existed. Gone with the port: `iac bootstrap` never rotates an existing
   engine.
 - [x] Relative `TARGET_DIR` handling. Gone with the port: the target is
   made absolute when it is resolved.
-- [ ] `fetch-micromamba` matches `Linux arm64`; Linux reports `aarch64`.
-- [ ] `fetch-micromamba` is `#!/bin/sh` but uses `set -o pipefail`.
-- [ ] Pin the micromamba version and verify a checksum instead of
-  downloading `latest`.
+- [x] `fetch-micromamba` matched `Linux arm64` but Linux reports `aarch64`,
+  and it was `#!/bin/sh` using `pipefail`. The script is replaced by
+  `scripts/iac_cli/micromamba.py`, which accepts both spellings.
+- [x] micromamba is pinned (2.10.0-0) and each download is checked against a
+  recorded SHA-256. A micromamba from another release is replaced.
 - [x] Engine symlink update is atomic (temporary link, then rename).
-- [ ] `sanitize-command` expands `$LOGNAME`, `$USER`, `$SHELL` unquoted and
-  exists in two identical copies (`scripts/`, `resources/bin/`). Keep one.
-- [ ] Put git in the engine and use it for `meta/` (issue #41).
+- [x] `sanitize-command`: `iac` builds the sanitized environment itself
+  (`sanitized_env()` in `common.py`), so `scripts/sanitize-command` is
+  gone. The copy users get, `resources/bin/sanitize-command`, now quotes
+  its expansions. Proxy variables pass through the sanitized environment.
+- [x] git is in the engine and writes `meta/` (issue #41), with
+  `safe.directory` set for a checkout owned by someone else. When git
+  cannot tell, `meta/` says `unknown` rather than `ERROR`.
 - [x] `usage()` in `bootstrap`: gone with the port.
+- [x] Unused validators removed from the engine: the binary checks and the
+  symlink validator, which only `promote_staging` used.
 
 ## 6. Tests
 
-- [ ] Add a failing test for each **(read)** item above before fixing it.
-- [ ] Subprocess tests for the real CLI with a fake `mamba` on a fixture
-  target: help, dry run, failure exit status, mamba discovery. This is old
-  item 7.1 and closes the gap that hid the section 2 bugs. Partly done:
-  `tests/unit/test_iac_scripts.py` covers help, no-target, dry run, and
-  the shims. Still missing: a fixture engine so `iac deploy` runs end to
-  end with a fake mamba (done by hand only).
-- [ ] The integration and E2E suites still drive `scripts/bootstrap-engine`
-  and call `deploy_tier()` directly. Point them at `scripts/iac`.
-- [ ] Integration tests call `pytest.skip` when bootstrap fails
-  (`tests/integration/test_bootstrap.py`), which hides real failures. Fail
-  instead.
-- [ ] The git fixture in `tests/e2e/test_real_workflow.py` runs
-  `git config user.name "E2E Test"` and at some point wrote it into this
-  repo's own `.git/config`; two commits on main carry that author. The
-  override was removed 2026-11-16. Find how the fixture reached the real
-  repo and make it impossible (for example `GIT_CONFIG_GLOBAL` and
-  per-command `-c` instead of `git config`).
-- [ ] Unit tests for the `env_yamls` parameter (issue #49). Note the issue
-  names `tests/unit/test_deploy.py`; the file is `test_deploy_tier.py`.
-- [ ] Remove or implement the two permanently skipped tests (offline,
-  force).
-- [ ] Offline-mode E2E (old 6.3) and E2E timeouts (old AI.0).
-- [ ] GitHub Actions: unit tests and ruff on every push (old AI.6).
+- [x] Subprocess tests for the real CLI: `tests/unit/test_iac_scripts.py`
+  (help, no target, dry run) and `tests/integration/test_iac_real.py`
+  (a real engine: layout, dry-run deploy, mamba discovery, rotation).
+- [x] The integration and E2E suites drive `scripts/iac` only. They were
+  rewritten, not ported: `tests/integration/test_iac_real.py` and one
+  workflow in `tests/e2e/test_real_workflow.py`.
+- [x] A failed bootstrap fails the integration tests instead of skipping.
+- [x] The E2E git identity leak. Cause: a git hook exports `GIT_DIR`, so
+  the fixture's `git init` and `git config user.name` acted on this
+  repository whenever the suite ran under a hook. The fixture is deleted
+  (it served no purpose: the engine reads this checkout, not the target),
+  and `run_iac()` in `tests/conftest.py` strips every `GIT_*` variable.
+  Two commits on `main` keep the wrong author.
+- [x] Unit tests for the `env_yamls` parameter (issue #49) already exist in
+  `tests/unit/test_deploy_tier.py`; the issue can be closed.
+- [x] The two permanently skipped tests are removed.
+- [x] GitHub Actions: ruff and unit tests on every push, Linux and macOS
+  (`.github/workflows/ci.yml`).
+- [x] `tests/unit/test_profile.py` sources `profile.sh` in a bare bash and
+  a bare `zsh -f`.
+- [ ] Run `--run-integration` and `--run-e2e` once on Linux.
+- [ ] Offline-mode E2E: needs a populated package cache to be meaningful.
 
 ## 7. Tier contents
 
-- [ ] Remove ranger: delete `resources/etc/profile.d/ranger.sh` and the
-  `ranger-fm` line in `resources/defs/universal/python.yaml` together
-  (issue #51).
-- [ ] `compdef: command not found` on `clinical-cpa1` (issue #27).
-  `profile.sh` has an untested `compinit` fallback marked TODO; guard each
-  `compdef` call in `bookmarks.sh`, `ca.sh`, `dynamic_cd.sh`,
-  `functions.sh`, and test under a bare `zsh -f`.
-- [ ] Central pip cache: set `PIP_CACHE_DIR` in `profile.sh` beside the
-  conda cache (issue #26).
-- [ ] Homebrew hidden on macOS (issue #39): `profile.sh` resets `PATH` to a
-  fixed list without `/opt/homebrew/bin`. Decide whether to add it or
-  re-append `IAC_ORIGINAL_PATH`.
-- [ ] `mac/bioconda.yaml` is never deployed, though `profile.sh` adds a
-  `bioconda` environment to `PATH`. `experimental.yaml` lives in
-  `universal/` while CLAUDE.md describes an `experimental/` directory.
-  Deploy or delete, and fix the description.
-- [ ] `va()` in `functions.sh` is marked "TODO fix".
+- [x] ranger removed: `ranger.sh` and the `ranger-fm` dependency (issue
+  #51).
+- [x] `compdef: command not found` (issue #27). `profile.sh` runs
+  `compinit -i` when compdef is missing; verified under `zsh -f` by
+  `test_profile.py`. The per-file guards turned out not to be needed.
+- [x] `PIP_CACHE_DIR` defaults to `$IAC_PARENT/users/$USER/pip_cache`
+  (issue #26). Per user, because pip disables a cache directory it does
+  not own.
+- [ ] Homebrew hidden on macOS (issue #39). Cause and trade-offs are
+  written up on the issue. Waiting on a decision between adding
+  `/opt/homebrew/bin` to the fixed `PATH` and appending
+  `IAC_ORIGINAL_PATH`.
+- [x] `mac/bioconda.yaml` was never deployed; deleted, with the `bioconda`
+  entry in `profile.sh`. CLAUDE.md no longer describes an `experimental/`
+  directory.
+- [ ] `va()` in `functions.sh` is marked "TODO fix" with no statement of
+  what is wrong.
 
 ## 8. Docs
 
 - [x] README, `docs/`, and CLAUDE.md rewritten around `iac`; new
   `docs/iac.md` includes the exit codes.
-- [ ] Rewrite `docs/promote_staging.md` with section 4.
+- [x] `docs/promote_staging.md` rewritten as `docs/promote.md`.
 - [ ] Document the environment-definition format.
 
 ## 9. Backlog (after the above)
@@ -217,8 +223,16 @@ Small additions, each its own change:
 - [ ] Post-deploy disk usage log (#45)
 - [ ] Rollback and deploy-state tracking (old AI.3)
 
-## Order
+## Verification
 
-1 → 2 → 6 (first two items) → 3 → 4 → 5 → 7 → 8 → 9. Sections 1 and 2 do
-not depend on any decision and can start now. Section 7 is independent of
-everything else.
+Real runs on a scratch target, macOS arm64, 2026-11-16:
+
+- `iac bootstrap`: engine built, `engine -> engine_a`, `staging -> blue`,
+  `production -> green`. The micromamba the old fetch script downloaded has
+  the SHA-256 now pinned for `osx-arm64`.
+- `iac bootstrap` again: "Engine already installed", nothing changed.
+- `iac engine`: built `engine_b` with git in it and switched the link.
+- `iac deploy --dry-run`: `mamba_binary` is
+  `engine_home/engine/bin/mamba`; nothing created.
+
+Not yet run anywhere: the Linux paths (see section 6).

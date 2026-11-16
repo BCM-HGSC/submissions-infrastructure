@@ -6,15 +6,10 @@ from unittest.mock import patch
 import pytest
 
 from scripts.engine.validators import (
-    BinaryNotFoundError,
     DiskSpaceError,
     PathTraversalError,
     ValidationError,
-    check_binary_available,
-    check_bootstrap_binaries,
-    check_deploy_binaries,
     check_disk_space,
-    check_required_binaries,
     estimate_env_size_gb,
     get_available_space_gb,
     validate_env_yaml,
@@ -110,7 +105,7 @@ def test_validate_env_yaml_missing_channels(tmp_path):
   - python
 """
     )
-    with pytest.raises(ValidationError, match="Missing required keys.*channels"):
+    with pytest.raises(ValidationError, match=r"Missing required keys.*channels"):
         validate_env_yaml(yaml_file)
 
 
@@ -122,7 +117,7 @@ def test_validate_env_yaml_missing_dependencies(tmp_path):
   - conda-forge
 """
     )
-    with pytest.raises(ValidationError, match="Missing required keys.*dependencies"):
+    with pytest.raises(ValidationError, match=r"Missing required keys.*dependencies"):
         validate_env_yaml(yaml_file)
 
 
@@ -131,7 +126,7 @@ def test_validate_env_yaml_missing_both_keys(tmp_path):
     yaml_file = tmp_path / "test.yaml"
     yaml_file.write_text("name: test\n")
     with pytest.raises(
-        ValidationError, match="Missing required keys.*channels.*dependencies"
+        ValidationError, match=r"Missing required keys.*channels.*dependencies"
     ):
         validate_env_yaml(yaml_file)
 
@@ -464,164 +459,6 @@ def test_validate_env_yaml_real_python_file():
         pytest.skip("python.yaml not found")
 
 
-# Binary checking tests
-
-
-def test_check_binary_available_found_in_path():
-    """Test that check_binary_available finds a binary in PATH."""
-    # Python should always be available since we're running tests with it
-    result = check_binary_available("python3")
-    assert result is not None
-    assert result.exists()
-
-
-def test_check_binary_available_not_found():
-    """Test that check_binary_available returns None for nonexistent binary."""
-    result = check_binary_available("nonexistent-binary-xyz-123")
-    assert result is None
-
-
-def test_check_binary_available_with_specific_path(tmp_path):
-    """Test that check_binary_available checks specific paths first."""
-    # Create a fake binary in a specific path
-    fake_bin_dir = tmp_path / "bin"
-    fake_bin_dir.mkdir()
-    fake_binary = fake_bin_dir / "testbin"
-    fake_binary.write_text("#!/bin/sh\necho test")
-    fake_binary.chmod(0o755)
-
-    # Check with specific path
-    result = check_binary_available("testbin", [str(fake_bin_dir)])
-    assert result is not None
-    assert result == fake_binary
-
-
-def test_check_binary_available_specific_path_not_found(tmp_path):
-    """Test that check_binary_available falls back to PATH if not in specific paths."""
-    fake_bin_dir = tmp_path / "bin"
-    fake_bin_dir.mkdir()
-
-    # Binary not in specific path, but check that it falls back to PATH
-    result = check_binary_available("python3", [str(fake_bin_dir)])
-    # Should find python3 in system PATH
-    assert result is not None
-
-
-def test_check_required_binaries_all_found():
-    """Test check_required_binaries when all binaries are found."""
-    # Use binaries that should always exist
-    result = check_required_binaries(["sh", "echo"])
-    assert "sh" in result
-    assert "echo" in result
-    assert result["sh"] is not None
-    assert result["echo"] is not None
-
-
-def test_check_required_binaries_missing_required():
-    """Test check_required_binaries raises error for missing required binaries."""
-    with pytest.raises(BinaryNotFoundError, match="Required binaries not found"):
-        check_required_binaries(["nonexistent-binary-xyz-123"])
-
-
-def test_check_required_binaries_missing_optional():
-    """Test check_required_binaries allows missing optional binaries."""
-    result = check_required_binaries(
-        ["sh", "nonexistent-binary-xyz-123"], optional=["nonexistent-binary-xyz-123"]
-    )
-    assert "sh" in result
-    assert result["sh"] is not None
-    assert "nonexistent-binary-xyz-123" in result
-    assert result["nonexistent-binary-xyz-123"] is None
-
-
-def test_check_required_binaries_with_search_paths(tmp_path):
-    """Test check_required_binaries with specific search paths."""
-    # Create a fake binary
-    fake_bin_dir = tmp_path / "bin"
-    fake_bin_dir.mkdir()
-    fake_binary = fake_bin_dir / "testbin"
-    fake_binary.write_text("#!/bin/sh\necho test")
-    fake_binary.chmod(0o755)
-
-    result = check_required_binaries(
-        ["testbin"], search_paths={"testbin": [str(fake_bin_dir)]}
-    )
-    assert result["testbin"] == fake_binary
-
-
-def test_check_required_binaries_error_message_format():
-    """Test that error message contains helpful installation instructions."""
-    with pytest.raises(BinaryNotFoundError) as exc_info:
-        check_required_binaries(["nonexistent-curl-xyz", "nonexistent-git-xyz"])
-
-    error_msg = str(exc_info.value)
-    assert "nonexistent-curl-xyz" in error_msg
-    assert "nonexistent-git-xyz" in error_msg
-    assert "Required binaries not found" in error_msg
-
-
-@patch("scripts.engine.validators.check_binary_available")
-def test_check_required_binaries_installation_instructions(mock_check):
-    """Test that error message includes installation instructions for known binaries."""
-    mock_check.return_value = None
-
-    with pytest.raises(BinaryNotFoundError) as exc_info:
-        check_required_binaries(["curl", "git"])
-
-    error_msg = str(exc_info.value)
-    assert "curl" in error_msg
-    assert "git" in error_msg
-    assert "apt-get install" in error_msg or "yum install" in error_msg
-
-
-@patch("scripts.engine.validators.check_binary_available")
-def test_check_bootstrap_binaries_success(mock_check):
-    """Test check_bootstrap_binaries when all binaries are found."""
-    mock_check.return_value = Path("/usr/bin/curl")
-
-    result = check_bootstrap_binaries()
-    assert "curl" in result
-    assert "tar" in result
-
-
-@patch("scripts.engine.validators.check_binary_available")
-def test_check_bootstrap_binaries_missing(mock_check):
-    """Test check_bootstrap_binaries raises error when binaries are missing."""
-    mock_check.return_value = None
-
-    with pytest.raises(BinaryNotFoundError):
-        check_bootstrap_binaries()
-
-
-@patch("scripts.engine.validators.check_binary_available")
-def test_check_deploy_binaries_success(mock_check):
-    """Test check_deploy_binaries when git is found."""
-    mock_check.return_value = Path("/usr/bin/git")
-
-    result = check_deploy_binaries()
-    assert "git" in result
-    assert result["git"] is not None
-
-
-@patch("scripts.engine.validators.check_binary_available")
-def test_check_deploy_binaries_missing_required(mock_check):
-    """Test check_deploy_binaries raises error when git is required but missing."""
-    mock_check.return_value = None
-
-    with pytest.raises(BinaryNotFoundError):
-        check_deploy_binaries(require_git=True)
-
-
-@patch("scripts.engine.validators.check_binary_available")
-def test_check_deploy_binaries_missing_optional(mock_check):
-    """Test check_deploy_binaries allows missing git when optional."""
-    mock_check.return_value = None
-
-    result = check_deploy_binaries(require_git=False)
-    assert "git" in result
-    assert result["git"] is None
-
-
 # Disk space checking tests
 
 
@@ -760,7 +597,7 @@ def test_check_disk_space_below_minimum_no_force(mock_get_space, tmp_path):
     assert "Insufficient disk space" in error_msg
     assert "10.0GB" in error_msg
     assert "15GB minimum" in error_msg
-    assert "Use --force to override" in error_msg
+    assert "Use --skip-disk-check to override" in error_msg
 
 
 @patch("scripts.engine.validators.get_available_space_gb")
@@ -770,7 +607,7 @@ def test_check_disk_space_below_minimum_with_force(mock_get_space, tmp_path):
 
     success, message = check_disk_space(tmp_path, operation="deploy", force=True)
     assert success is True
-    assert "WARNING: Proceeding anyway due to --force flag" in message
+    assert "WARNING: Proceeding anyway due to --skip-disk-check" in message
     assert "10.0GB" in message
 
 
@@ -818,7 +655,7 @@ dependencies:
 
     # With YAMLs, estimate will be ~(2 + 3) * 50MB * 1.5 / 1024 + 10 buffer = ~10.36 GB
     # 18 GB available > 15 GB minimum, but might trigger estimated need warning
-    success, message = check_disk_space(
+    success, _message = check_disk_space(
         tmp_path, operation="deploy", env_yamls=[yaml1, yaml2]
     )
     assert success is True

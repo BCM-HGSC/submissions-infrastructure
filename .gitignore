@@ -1,6 +1,10 @@
 build
 __pycache__
 .conda
+.venv/
+
+# Site-local default target for scripts/iac
+/iac_config.toml
 
 # Test artifacts
 .pytest_cache/

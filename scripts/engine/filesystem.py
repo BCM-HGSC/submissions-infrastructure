@@ -34,6 +34,10 @@ class FileSystemProtocol(Protocol):
         """Create a symbolic link."""
         ...
 
+    def write_bytes(self, path: Path, data: bytes) -> None:
+        """Write data to a file, replacing any existing content."""
+        ...
+
     def readlink(self, path: Path) -> Path:
         """Read the target of a symbolic link."""
         ...
@@ -83,6 +87,10 @@ class RealFileSystem:
         """Create a symbolic link."""
         link_path.symlink_to(target)
 
+    def write_bytes(self, path: Path, data: bytes) -> None:
+        """Write data to a file, replacing any existing content."""
+        path.write_bytes(data)
+
     def readlink(self, path: Path) -> Path:
         """Read the target of a symbolic link."""
         return path.readlink()
@@ -114,6 +122,7 @@ class MockFileSystem:
         self.symlinks: dict[Path, Path | str] = {}
         self.removed: list[Path] = []
         self.copied: list[tuple[Path, Path]] = []
+        self.written: dict[Path, bytes] = {}
 
     def mkdir(
         self, path: Path, *, parents: bool = False, exist_ok: bool = False
@@ -156,6 +165,11 @@ class MockFileSystem:
     def symlink_to(self, link_path: Path, target: Path | str) -> None:
         """Mock symbolic link creation."""
         self.symlinks[link_path] = target
+
+    def write_bytes(self, path: Path, data: bytes) -> None:
+        """Mock file write."""
+        self.files.add(path)
+        self.written[path] = data
 
     def readlink(self, path: Path) -> Path:
         """Mock reading symbolic link target."""

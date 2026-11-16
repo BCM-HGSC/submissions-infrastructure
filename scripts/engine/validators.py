@@ -4,7 +4,6 @@ Validation functions for environment definitions and configuration files.
 
 import os
 from pathlib import Path
-import shutil
 from typing import Any
 
 import yaml
@@ -201,145 +200,6 @@ def _validate_dict_dependency(dep: dict[str, Any], index: int, path: Path) -> No
         pass
 
 
-class BinaryNotFoundError(Exception):
-    """Exception raised when a required binary is not found."""
-
-
-def check_binary_available(
-    binary_name: str, search_paths: list[str] | None = None
-) -> Path | None:
-    """
-    Check if a binary is available in the system PATH or specified paths.
-
-    Args:
-        binary_name: Name of the binary to check for
-        search_paths: Optional list of specific paths to check (e.g., ["/usr/bin", "/bin"])
-
-    Returns:
-        Path to the binary if found, None otherwise
-    """
-    if search_paths:
-        # Check specific paths first
-        for search_path in search_paths:
-            binary_path = Path(search_path) / binary_name
-            if binary_path.exists() and binary_path.is_file():
-                return binary_path
-
-    # Check system PATH
-    binary_path = shutil.which(binary_name)
-    return Path(binary_path) if binary_path else None
-
-
-def check_required_binaries(
-    binaries: list[str],
-    search_paths: dict[str, list[str]] | None = None,
-    optional: list[str] | None = None,
-) -> dict[str, Path | None]:
-    """
-    Check for required binaries and return their paths.
-
-    Args:
-        binaries: List of binary names to check for
-        search_paths: Optional dict mapping binary names to specific search paths
-        optional: List of binary names that are optional (won't raise error if missing)
-
-    Returns:
-        Dictionary mapping binary names to their paths (or None if not found)
-
-    Raises:
-        BinaryNotFoundError: If a required binary is not found
-    """
-    search_paths = search_paths or {}
-    optional = optional or []
-    results = {}
-    missing_required = []
-
-    for binary in binaries:
-        specific_paths = search_paths.get(binary)
-        binary_path = check_binary_available(binary, specific_paths)
-        results[binary] = binary_path
-
-        if binary_path is None and binary not in optional:
-            missing_required.append(binary)
-
-    if missing_required:
-        error_msg = _format_missing_binaries_error(missing_required)
-        raise BinaryNotFoundError(error_msg)
-
-    return results
-
-
-def _format_missing_binaries_error(missing_binaries: list[str]) -> str:
-    """Format a helpful error message for missing binaries."""
-    lines = ["Required binaries not found:", ""]
-
-    for binary in missing_binaries:
-        lines.append(f"  - {binary}")
-
-        # Add installation instructions
-        if binary == "curl":
-            lines.append("    Install with: apt-get install curl (Debian/Ubuntu)")
-            lines.append("                  yum install curl (RHEL/CentOS)")
-            lines.append("                  brew install curl (macOS)")
-        elif binary == "git":
-            lines.append("    Install with: apt-get install git (Debian/Ubuntu)")
-            lines.append("                  yum install git (RHEL/CentOS)")
-            lines.append("                  brew install git (macOS)")
-        elif binary == "tar":
-            lines.append("    Usually pre-installed on Unix systems")
-            lines.append("    Install with: apt-get install tar (Debian/Ubuntu)")
-            lines.append("                  yum install tar (RHEL/CentOS)")
-        elif binary in ("mamba", "micromamba"):
-            lines.append("    Mamba should be installed via bootstrap process")
-            lines.append("    See: https://mamba.readthedocs.io/")
-
-        lines.append("")
-
-    return "\n".join(lines)
-
-
-def check_bootstrap_binaries() -> dict[str, Path | None]:
-    """
-    Check for binaries required during bootstrap process.
-
-    Returns:
-        Dictionary mapping binary names to their paths
-
-    Raises:
-        BinaryNotFoundError: If required binaries are not found
-    """
-    # These are the binaries used by fetch-micromamba script
-    return check_required_binaries(
-        binaries=["curl", "tar"],
-        search_paths={
-            "curl": ["/usr/bin"],
-            "tar": ["/usr/bin"],
-        },
-    )
-
-
-def check_deploy_binaries(require_git: bool = True) -> dict[str, Path | None]:
-    """
-    Check for binaries required during deployment process.
-
-    Args:
-        require_git: Whether git is required (default True)
-
-    Returns:
-        Dictionary mapping binary names to their paths
-
-    Raises:
-        BinaryNotFoundError: If required binaries are not found
-    """
-    binaries = ["git"]
-    optional = [] if require_git else ["git"]
-
-    return check_required_binaries(
-        binaries=binaries,
-        optional=optional,
-    )
-
-
 class DiskSpaceError(Exception):
     """Exception raised when insufficient disk space is available."""
 
@@ -462,9 +322,9 @@ def check_disk_space(
             f"Required: {minimum_gb}GB minimum\n"
         )
         if force:
-            error_msg += "WARNING: Proceeding anyway due to --force flag"
+            error_msg += "WARNING: Proceeding anyway due to --skip-disk-check"
             return True, error_msg
-        error_msg += f"{operation.capitalize()} requires at least {minimum_gb}GB of free space.\nUse --force to override."
+        error_msg += f"{operation.capitalize()} requires at least {minimum_gb}GB of free space.\nUse --skip-disk-check to override."
         raise DiskSpaceError(error_msg)
 
     if env_yamls and available_gb < estimated_need:
@@ -485,10 +345,6 @@ def check_disk_space(
 
     # Plenty of space
     return True, ""
-
-
-class SymlinkValidationError(Exception):
-    """Exception raised when symlink validation fails."""
 
 
 class PathTraversalError(Exception):
@@ -531,83 +387,9 @@ def validate_safe_path(path: Path, base: Path) -> bool:
             f"Cannot resolve path {path} relative to base {base}: {e}"
         ) from e
 
-    # Check if resolved path is within base directory
-    # Use is_relative_to if available (Python 3.9+), otherwise manual check
-    try:
-        if not resolved_path.is_relative_to(resolved_base):
-            raise PathTraversalError(
-                f"Path traversal detected: {path} resolves to {resolved_path}, "
-                f"which is outside base directory {base} (resolved to {resolved_base})"
-            )
-    except AttributeError:
-        # Fallback for Python < 3.9
-        try:
-            resolved_path.relative_to(resolved_base)
-        except ValueError as e:
-            raise PathTraversalError(
-                f"Path traversal detected: {path} resolves to {resolved_path}, "
-                f"which is outside base directory {base} (resolved to {resolved_base})"
-            ) from e
-
-    # Additional check: ensure no .. components in the original path that
-    # could indicate an attempted traversal (belt-and-suspenders approach)
-    parts = path.parts
-    if ".." in parts:
-        # This is not necessarily malicious (could be legitimate relative path),
-        # but combined with the resolve check above, we've verified it's safe
-        pass
-
-    return True
-
-
-def validate_symlink_target(
-    link: Path, expected: list[str], check_exists: bool = True
-) -> bool:
-    """
-    Validate that a symlink points to one of the expected targets.
-
-    Args:
-        link: Path to the symlink to validate
-        expected: List of expected target names (not full paths)
-        check_exists: If True, verify that the symlink target exists
-
-    Returns:
-        True if validation passes
-
-    Raises:
-        SymlinkValidationError: If validation fails with details about what failed
-    """
-    # Check if path exists
-    if not link.exists() and not link.is_symlink():
-        raise SymlinkValidationError(f"Path does not exist: {link}")
-
-    # Check if it's actually a symlink
-    if not link.is_symlink():
-        raise SymlinkValidationError(f"Path is not a symlink: {link}")
-
-    # Read the symlink target
-    try:
-        target = link.readlink()
-    except OSError as e:
-        raise SymlinkValidationError(f"Cannot read symlink {link}: {e}") from e
-
-    # Get the target name (last component of path)
-    target_name = target.name if isinstance(target, Path) else Path(target).name
-
-    # Check if target name is in expected list
-    if target_name not in expected:
-        expected_str = ", ".join(expected)
-        raise SymlinkValidationError(
-            f"Symlink {link} points to '{target_name}', expected one of: {expected_str}"
+    if not resolved_path.is_relative_to(resolved_base):
+        raise PathTraversalError(
+            f"Path traversal detected: {path} resolves to {resolved_path}, "
+            f"which is outside base directory {base} (resolved to {resolved_base})"
         )
-
-    # Check if target exists (if requested)
-    if check_exists:
-        # Resolve relative to the symlink's parent directory
-        resolved_target = link.parent / target
-        if not resolved_target.exists():
-            raise SymlinkValidationError(
-                f"Symlink {link} points to non-existent target: {target} (resolved to {resolved_target})"
-            )
-
     return True

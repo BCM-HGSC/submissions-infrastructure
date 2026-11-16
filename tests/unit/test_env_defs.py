@@ -188,9 +188,9 @@ def test_platform_specific_files_exist():
         assert mac_yaml.is_file()
 
     # At least one should exist
-    assert (
-        linux_yaml.exists() or mac_yaml.exists()
-    ), "At least one platform-specific file should exist"
+    assert linux_yaml.exists() or mac_yaml.exists(), (
+        "At least one platform-specific file should exist"
+    )
 
 
 def test_list_iteration_bug_fixed():

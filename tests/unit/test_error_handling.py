@@ -5,12 +5,13 @@ from pathlib import Path
 import pytest
 
 from scripts.engine.deploy import (
-    MAMBA,
     check_mamba,
     deploy_tier,
     list_conda_environment_defs,
 )
 from scripts.engine.filesystem import MockFileSystem
+
+MAMBA = Path("/fake/engine/bin/mamba")
 
 
 def test_check_mamba_missing():
@@ -20,6 +21,14 @@ def test_check_mamba_missing():
 
     with pytest.raises(SystemExit) as exc_info:
         check_mamba(filesystem, MAMBA)
+
+    assert exc_info.value.code == 2
+
+
+def test_check_mamba_not_found():
+    """Test check_mamba exits when no mamba could be located at all."""
+    with pytest.raises(SystemExit) as exc_info:
+        check_mamba(MockFileSystem(), None)
 
     assert exc_info.value.code == 2
 
@@ -46,6 +55,7 @@ def test_deploy_tier_missing_mamba(tmp_path):
             dry_run=False,
             offline=False,
             filesystem=filesystem,
+            mamba_path=MAMBA,
         )
 
     assert exc_info.value.code == 2
@@ -66,6 +76,7 @@ def test_deploy_tier_nonexistent_target():
             dry_run=False,
             offline=False,
             filesystem=filesystem,
+            mamba_path=MAMBA,
         )
 
     assert exc_info.value.code == 3
@@ -84,6 +95,7 @@ def test_deploy_tier_production_protection(tmp_path):
             dry_run=False,
             offline=False,
             filesystem=filesystem,
+            mamba_path=MAMBA,
         )
 
     assert exc_info.value.code == 4
@@ -262,24 +274,3 @@ def test_mock_filesystem_readlink():
     filesystem.symlinks[link] = target
 
     assert filesystem.readlink(link) == target
-
-
-def test_error_exit_codes_are_distinct():
-    """Test that different error conditions have distinct exit codes."""
-    # This ensures we can distinguish between different error types
-    exit_codes = {
-        "mamba_missing": 2,
-        "target_not_directory": 3,
-        "production_protection": 4,
-    }
-
-    # All exit codes should be unique
-    assert len(exit_codes) == len(set(exit_codes.values()))
-
-    # All should be non-zero
-    assert all(code > 0 for code in exit_codes.values())
-
-
-# Note: Tests for --keep and --force modes are better suited for integration tests
-# since they require actual filesystem operations even in dry-run mode (log file creation).
-# Error handling for these modes is already covered by the tests above.

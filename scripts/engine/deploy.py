@@ -24,9 +24,6 @@ from .validators import (
     validate_safe_path,
 )
 
-# Find mamba in PATH instead of assuming it's next to Python executable
-_mamba_path = shutil.which("mamba")
-MAMBA = Path(_mamba_path) if _mamba_path else None
 CODE_ROOT_DIR = Path(__file__).parent.parent.parent
 RESOURCES_DIR = CODE_ROOT_DIR / "resources"
 DEFS_DIR = RESOURCES_DIR / "defs"
@@ -37,10 +34,11 @@ ETC_SOURCE_DIR = RESOURCES_DIR / "etc"
 def deploy_tier(
     target: Path,
     tier: str,
+    *,
     dry_run: bool,
     offline: bool,
     mode: str | None = None,
-    run_function=None,  # Deprecated, use command_runner  # noqa: ARG001
+    skip_disk_check: bool = False,
     filesystem: FileSystemProtocol | None = None,
     command_runner: CommandRunnerProtocol | None = None,
     env_yamls: list[Path] | None = None,
@@ -51,28 +49,14 @@ def deploy_tier(
     if command_runner is None:
         command_runner = RealCommandRunner()
 
-    # Use provided mamba_path or default MAMBA
-    mamba_binary = mamba_path if mamba_path is not None else MAMBA
+    mamba_binary = mamba_path if mamba_path is not None else find_mamba()
 
-    # Check disk space before starting deployment
-    force = mode == "force"
     worklist = env_yamls if env_yamls is not None else list_conda_environment_defs()
-    try:
-        success, message = check_disk_space(
-            target, operation="deploy", env_yamls=worklist, force=force
-        )
-        if message:
-            if message.startswith(("WARNING:", "ERROR:")):
-                warning(message)
-            else:
-                info(message)
-    except DiskSpaceError as e:
-        critical(str(e))
-        sys.exit(4)
-
+    require_disk_space(target, worklist, force=skip_disk_check)
     check_mamba(filesystem, mamba_binary)
-    prod_path = setup_tier_path(target, "production", filesystem)
-    tier_path = setup_tier_path(target, tier, filesystem)
+    # Only locate production; never create it.
+    prod_path = setup_tier_path(target, "production", filesystem, create=False)
+    tier_path = setup_tier_path(target, tier, filesystem, create=not dry_run)
     if tier_path == prod_path:
         critical(f"Cannot modify production tier: tier={tier} resolves to {tier_path}")
         sys.exit(4)
@@ -80,28 +64,52 @@ def deploy_tier(
     if (
         filesystem.exists(tier_path)
         and not keep
-        and (match(r"^(dev.*|test.*|staging)$", tier) or mode == "force")
+        and (match(r"^(dev.*|test.*|staging)$", tier) or mode == "overwrite")
     ):
-        filesystem.rmtree(tier_path)
-        filesystem.mkdir(tier_path)
+        if dry_run:
+            info(f"[DRY RUN] Would remove and recreate {tier_path}")
+        else:
+            filesystem.rmtree(tier_path)
+            filesystem.mkdir(tier_path)
     deployer = MambaDeployer(
         target,
         tier_path,
-        dry_run,
-        offline,
-        keep,
-        command_runner,
-        filesystem,
-        mamba_binary,
+        dry_run=dry_run,
+        offline=offline,
+        keep=keep,
+        command_runner=command_runner,
+        filesystem=filesystem,
+        mamba_binary=mamba_binary,
     )
-    if deployer.keep:
-        deployer.info()
-    deployer.deploy_conda_environments(worklist)
-    if deployer.dry_run:
+    if not dry_run:
+        # meta/ marks a tier as deployed, so it goes first and comes back last.
+        deployer.clear_meta()
+        if keep:
+            deployer.info()
+    failed = deployer.deploy_conda_environments(worklist)
+    if dry_run:
         return
+    if failed:
+        critical(f"Failed to deploy environments: {', '.join(failed)}")
+        sys.exit(4)
     deployer.deploy_bin()
     deployer.deploy_etc()
     deployer.store_git_info()
+
+
+def require_disk_space(target: Path, worklist: list[Path], *, force: bool) -> None:
+    """Exit if there is too little space to deploy; log any lesser concern."""
+    try:
+        _success, message = check_disk_space(
+            target, operation="deploy", env_yamls=worklist, force=force
+        )
+    except DiskSpaceError as e:
+        critical(str(e))
+        sys.exit(4)
+    if message.startswith(("WARNING:", "ERROR:")):
+        warning(message)
+    elif message:
+        info(message)
 
 
 def check_mamba(filesystem: FileSystemProtocol, mamba_binary: Path | None) -> None:
@@ -112,6 +120,21 @@ def check_mamba(filesystem: FileSystemProtocol, mamba_binary: Path | None) -> No
     if not filesystem.is_file(mamba_binary):
         critical(f"Required binary not found: mamba at {mamba_binary}")
         sys.exit(2)
+
+
+def find_mamba() -> Path | None:
+    """
+    Locate mamba, preferring the engine this interpreter belongs to.
+
+    The deploy wrapper runs the engine with a minimal PATH, so PATH is only
+    a fallback for development and tests.
+    """
+    engine_dir = Path(sys.executable).parent.parent
+    for candidate in (engine_dir / "bin/mamba", engine_dir / "condabin/mamba"):
+        if candidate.is_file():
+            return candidate
+    on_path = shutil.which("mamba")
+    return Path(on_path) if on_path else None
 
 
 def validate_tier_path(target: Path, tier: str) -> Path:
@@ -132,7 +155,9 @@ def validate_tier_path(target: Path, tier: str) -> Path:
     return (target / "infrastructure" / tier).resolve()
 
 
-def setup_tier_path(target: Path, tier: str, filesystem: FileSystemProtocol) -> Path:
+def setup_tier_path(
+    target: Path, tier: str, filesystem: FileSystemProtocol, *, create: bool = True
+) -> Path:
     """
     Setup tier path with validation and directory creation.
 
@@ -140,6 +165,7 @@ def setup_tier_path(target: Path, tier: str, filesystem: FileSystemProtocol) -> 
         target: Target directory path
         tier: Tier name
         filesystem: Filesystem abstraction for I/O operations
+        create: Create the tier directory if it does not exist
 
     Returns:
         Resolved tier path
@@ -172,7 +198,7 @@ def setup_tier_path(target: Path, tier: str, filesystem: FileSystemProtocol) -> 
         sys.exit(3)
 
     info(f"{tier_path=}")
-    if not filesystem.is_dir(tier_path):
+    if create and not filesystem.is_dir(tier_path):
         filesystem.mkdir(tier_path, parents=True, exist_ok=True)
     return tier_path
 
@@ -193,6 +219,7 @@ class MambaDeployer:
         self,
         target: Path,
         tier_path: Path,
+        *,
         dry_run: bool,
         offline: bool,
         keep: bool = False,
@@ -207,7 +234,8 @@ class MambaDeployer:
             command_runner if command_runner is not None else RealCommandRunner()
         )
         self.filesystem = filesystem if filesystem is not None else RealFileSystem()
-        self.mamba = mamba_binary if mamba_binary is not None else MAMBA
+        self.mamba = mamba_binary if mamba_binary is not None else find_mamba()
+        self.tier_name = tier_path.name
         self.envs_dir = tier_path / "conda/envs"
         self.bin_dir = tier_path / "bin"
         self.etc_dir = tier_path / "etc"
@@ -219,15 +247,17 @@ class MambaDeployer:
             "CONDA_CHANNELS": "conda-forge",
         }
         info(f"{self.env=}")
-        self.log_dir = tier_path / "logs"
-        self.filesystem.mkdir(self.log_dir, parents=True, exist_ok=True)
+        # Outside the tier, so logs survive the tier being replaced.
+        self.log_dir = target / "logs"
         self.console = Console()
         debug(f"vars(deployer)={vars(self)}")
 
     def info(self) -> None:
         self.command_runner.run([self.mamba, "info"], env=self.env)
 
-    def deploy_conda_environments(self, worklist: list[Path]) -> None:
+    def deploy_conda_environments(self, worklist: list[Path]) -> list[str]:
+        """Attempt every environment; return the names of those that failed."""
+        failed = []
         for env_yaml in worklist:
             info(f"{env_yaml=}")
             returncode = self.deploy_env(env_yaml)
@@ -235,6 +265,8 @@ class MambaDeployer:
                 error(
                     f"Failed to deploy environment {env_yaml.name} (exit code {returncode})"
                 )
+                failed.append(env_yaml.stem)
+        return failed
 
     def deploy_env(self, env_yaml: Path) -> int:
         # Validate YAML file exists and is valid
@@ -262,11 +294,15 @@ class MambaDeployer:
         mamba_command = [self.mamba, "env", "create", "-y", *options]
         mamba_command += ["-n", env_name, "-f", DEFS_DIR / env_yaml]
         if self.dry_run:
-            mamba_command[:0] = ["/usr/bin/env", "echo"]
+            command_text = " ".join(str(arg) for arg in mamba_command)
+            info(f"[DRY RUN] Would run: {command_text}")
+            return 0
         info(f"{mamba_command=}")
         timestamp = dt.now().strftime("%Y%m%d-%H%M%S")
-        log_path = self.log_dir / f"{timestamp}-{env_yaml.stem}.log"
+        log_name = f"{timestamp}-{self.tier_name}-{env_name}.log"
+        log_path = self.log_dir / log_name
         info(f"{log_path=}")
+        self.filesystem.mkdir(self.log_dir, parents=True, exist_ok=True)
         with (
             log_path.open("wb") as fout,
             self.console.status(f"Installing {env_yaml}..."),
@@ -296,23 +332,41 @@ class MambaDeployer:
             dirs_exist_ok=True,
         )
 
-    def store_git_info(self) -> None:
-        self.filesystem.mkdir(self.meta_dir, exist_ok=True)
-        self.write_meta("commit", ["rev-parse", "HEAD"], True)
-        self.write_meta("tree_hash", ["rev-parse", "HEAD:"], True)
-        (
-            self.write_meta("description", ["describe", "--dirty"])
-            or self.write_meta("description", ["describe", "--dirty", "--tags"])
-            or self.write_meta("description", ["describe", "--dirty", "--all"])
-        )
+    def clear_meta(self) -> None:
+        if self.filesystem.exists(self.meta_dir):
+            self.filesystem.rmtree(self.meta_dir)
 
-    def write_meta(
-        self, dest_name: str, subcommand: list[str], expect_fail: bool = True
-    ) -> bool:
-        command_prefix = ["git", "-C", str(CODE_ROOT_DIR)]
-        command = command_prefix + subcommand
-        stderr = DEVNULL if expect_fail else None
-        result = self.command_runner.run(command, stdout=PIPE, stderr=stderr)
-        dest_path = self.meta_dir / dest_name
-        dest_path.write_bytes(result.stdout or b"ERROR\n")
-        return result.returncode == 0
+    def store_git_info(self) -> None:
+        """Record what was deployed. meta/commit is written last."""
+        self.filesystem.mkdir(self.meta_dir, exist_ok=True)
+        self.write_meta(
+            "description",
+            ["describe", "--dirty"],
+            ["describe", "--dirty", "--tags"],
+            ["describe", "--dirty", "--all"],
+        )
+        self.write_meta("tree_hash", ["rev-parse", "HEAD:"])
+        self.write_meta("commit", ["rev-parse", "HEAD"])
+
+    def write_meta(self, dest_name: str, *subcommands: list[str]) -> None:
+        """Write the output of the first git subcommand that succeeds."""
+        # The checkout may belong to another member of the team.
+        prefix = [find_git(), "-c", f"safe.directory={CODE_ROOT_DIR}"]
+        prefix += ["-C", str(CODE_ROOT_DIR)]
+        content = b""
+        for subcommand in subcommands:
+            result = self.command_runner.run(
+                prefix + subcommand, stdout=PIPE, stderr=DEVNULL
+            )
+            if result.returncode == 0 and result.stdout:
+                content = result.stdout
+                break
+        if not content:
+            warning(f"git could not determine {dest_name}; recording unknown")
+        self.filesystem.write_bytes(self.meta_dir / dest_name, content or b"unknown\n")
+
+
+def find_git() -> Path | str:
+    """The engine's own git, or whatever git is on PATH during development."""
+    engine_git = Path(sys.executable).parent / "git"
+    return engine_git if engine_git.is_file() else "git"

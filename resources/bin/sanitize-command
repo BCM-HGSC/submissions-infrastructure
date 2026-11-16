@@ -16,9 +16,9 @@
 # sanitize-command HOME=/dev/null YOUR COMMAND
 
 
-exec /usr/bin/env -i HOME="$(pwd)" LOGNAME=$LOGNAME USER=$USER \
+exec /usr/bin/env -i HOME="$(pwd)" LOGNAME="$LOGNAME" USER="$USER" \
     PATH=/usr/bin:/bin \
-    SHELL=$SHELL \
+    SHELL="$SHELL" \
     TERM="$TERM" \
     __SANITIZED_ENV=1 \
     "$@"

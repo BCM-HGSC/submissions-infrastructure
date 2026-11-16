@@ -1,0 +1,21 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""
+The single entry point for managing the infrastructure. See `iac --help`.
+
+Standard library only: this runs before any engine exists. The code is in
+the iac_cli package beside this file.
+"""
+
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from iac_cli.cli import main
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -6,44 +6,40 @@ Code to generate on-prem code infrastructure for the Submissions team at BCM-HGS
 
 ### Outline
 
-1. Clone or download the software.
-2. Run commands in the scripts directory to create and update infrastructure.
+1. Clone or download the software. The one prerequisite is
+   [uv](https://docs.astral.sh/uv/).
+2. Run `scripts/iac` to create and update infrastructure.
 
 ### Bootstrap
 
-Pass the **parent** of the `infrastructure/` directory as `TARGET_DIR`. For
+The target is the **parent** of the `infrastructure/` directory. For
 example, if the deployment lives at `/hgsc_software/submissions/infrastructure/`:
 
 ```bash
 cd /hgsc_software/submissions
-bash submissions-infrastructure-git/scripts/bootstrap .
+submissions-infrastructure-git/scripts/iac bootstrap --target .
 ```
 
-The script creates `./conda_package_cache`, `./engine_home`, and
-`./infrastructure/` under `TARGET_DIR`. Passing `infrastructure/` itself as
-`TARGET_DIR` is a common mistake — it would nest a new
+This creates `./conda_package_cache`, `./engine_home`, and
+`./infrastructure/` under the target. Passing `infrastructure/` itself as
+the target is a common mistake — it would nest a new
 `infrastructure/infrastructure/` inside the existing one.
 
-If `infrastructure/` already exists (re-bootstrapping), add `--force`:
-
-```bash
-bash submissions-infrastructure-git/scripts/bootstrap --force .
-```
+Bootstrap only creates what is missing and never removes anything, so it is
+safe to run again on an existing deployment.
 
 ## Documentation
 
-Comprehensive documentation for all core scripts is available in the `docs/` directory. See [docs/README.md](docs/README.md) for:
-- Detailed script documentation (bootstrap, deploy, promote_staging)
-- Quick start guides and decision trees
-- Common workflow examples
+See [docs/README.md](docs/README.md), and [docs/iac.md](docs/iac.md) for the
+full command reference.
 
 ## Layout
 
 After running these commands:
 
 ```bash
-scripts/bootstrap TARGET_DIR
-scripts/deploy TARGET_DIR staging
+scripts/iac bootstrap --target TARGET_DIR
+scripts/iac deploy --target TARGET_DIR
 ```
 
 The layout would be:
@@ -80,23 +76,31 @@ TARGET_DIR
     └── staging -> blue
 ```
 
-`scripts/deploy` also writes one log per environment to `TARGET_DIR/logs`,
+Deploying also writes one log per environment to `TARGET_DIR/logs`,
 outside the tiers so the logs survive a tier being replaced.
 
 This command will switch the production and staging symlinks:
 
 ```bash
-# Requires that IAC_TIER_DIR be in the environment
-scripts/promote_staging
+scripts/iac promote --target TARGET_DIR
 ```
 
 ## Commands
 
-- `scripts/bootstrap`: create a new fresh start infrastructure.
-- `scripts/deploy`: create a "tier" - a complete collection of software. Requires that bootstrap has been run on the target location.
-- `scripts/bootstrap-engine`: update the "engine" - the system used to create tiers. Used by bootstrap.
-- `scripts/fetch-micromamba`: download a copy of micromamba to the specified location. Used by bootstrap-engine.
-- `scripts/promote_staging`: switches the symlinks between production and staging. Requires `IAC_TIER_DIR` environment variable to be set.
+`scripts/iac [--target TARGET_DIR] SUBCOMMAND`. The target can also come
+from `IAC_PARENT` or a config file; see [docs/iac.md](docs/iac.md).
+
+- `iac bootstrap`: create whatever a deployment is missing. Never removes anything.
+- `iac engine`: replace the "engine" - the system used to create tiers.
+- `iac deploy`: create a "tier" - a complete collection of software. Deploys to staging unless `--tier` says otherwise.
+- `iac promote`: switch the symlinks between production and staging.
+- `iac status`: show the engine, the tier links, and what is deployed.
+
+Helpers that `iac` calls: `scripts/fetch-micromamba`, `scripts/sanitize-command`,
+`scripts/promote_staging`, and the `scripts/engine` package.
+
+`scripts/bootstrap`, `scripts/bootstrap-engine`, and `scripts/deploy` are
+deprecated shims for `iac` and will be removed.
 
 ## Environment Variables
 

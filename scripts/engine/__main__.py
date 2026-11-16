@@ -33,6 +33,7 @@ def main(cli_args: list[str]) -> None:
         dry_run=args.dry_run,
         offline=args.offline,
         mode=args.mode,
+        skip_disk_check=args.skip_disk_check,
         filesystem=filesystem,
         command_runner=command_runner,
     )
@@ -41,6 +42,9 @@ def main(cli_args: list[str]) -> None:
 def parse_command_line(argv: list[str] | None = None) -> Namespace:
     """
     `python3 -m engine TARGET_DIR TIER`
+
+    Users reach this through `scripts/iac deploy`, which supplies both
+    positional arguments.
 
     Parses argv, or sys.argv[1:] when argv is None.
     """
@@ -58,11 +62,16 @@ def parse_command_line(argv: list[str] | None = None) -> Namespace:
         help="keep existing conda environments",
     )
     mode.add_argument(
-        "--force",
+        "--overwrite",
         action="store_const",
         const="force",
         dest="mode",
-        help="overwrite existing conda environments",
+        help="replace the contents of a tier that is not normally replaced",
+    )
+    parser.add_argument(
+        "--skip-disk-check",
+        action="store_true",
+        help="continue even when free disk space is below the minimum",
     )
     return parser.parse_args(argv)
 

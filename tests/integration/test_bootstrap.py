@@ -23,23 +23,25 @@ def test_bootstrap_help(bootstrap_script):
     )
 
     assert result.returncode == 0
-    assert "Usage:" in result.stdout
-    assert "TARGET_DIR" in result.stdout
+    assert "usage: iac engine" in result.stdout
+    assert "--target" in result.stdout
     assert "--offline" in result.stdout
 
 
 @pytest.mark.integration
-def test_bootstrap_missing_target_dir(bootstrap_script):
-    """Test bootstrap-engine fails gracefully without TARGET_DIR."""
+def test_bootstrap_missing_target_dir(bootstrap_script, tmp_path, monkeypatch):
+    """Test bootstrap-engine fails gracefully when no target is configured."""
+    monkeypatch.delenv("IAC_PARENT", raising=False)
     result = subprocess.run(
         [str(bootstrap_script)],
         capture_output=True,
         text=True,
         check=False,
+        cwd=tmp_path,
     )
 
     assert result.returncode == 1
-    assert "TARGET_DIR argument is required" in result.stderr
+    assert "No target directory" in result.stderr
 
 
 @pytest.mark.integration

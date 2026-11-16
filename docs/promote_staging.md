@@ -8,7 +8,12 @@ The `scripts/promote_staging` executable is a Python script that promotes the st
 
 This script performs a blue/green deployment rotation, making the current staging environment become production and moving staging to the opposite color. This enables zero-downtime deployments where changes are tested in staging before being promoted.
 
-The script must be run from within an active tier environment (after sourcing a tier's profile.sh).
+**Preferred: `scripts/iac promote`.** It finds the target the way every
+`iac` subcommand does (see [iac.md](iac.md)), supplies `IAC_TIER_DIR`
+itself, and runs this script under the engine's Python. That works on a
+freshly bootstrapped target where no tier has been sourced yet.
+
+Run directly, the script must be started from within an active tier environment (after sourcing a tier's profile.sh), under a Python that has PyYAML.
 
 ## Arguments and Options
 

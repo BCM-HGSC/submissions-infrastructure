@@ -462,9 +462,9 @@ def check_disk_space(
             f"Required: {minimum_gb}GB minimum\n"
         )
         if force:
-            error_msg += "WARNING: Proceeding anyway due to --force flag"
+            error_msg += "WARNING: Proceeding anyway due to --skip-disk-check"
             return True, error_msg
-        error_msg += f"{operation.capitalize()} requires at least {minimum_gb}GB of free space.\nUse --force to override."
+        error_msg += f"{operation.capitalize()} requires at least {minimum_gb}GB of free space.\nUse --skip-disk-check to override."
         raise DiskSpaceError(error_msg)
 
     if env_yamls and available_gb < estimated_need:

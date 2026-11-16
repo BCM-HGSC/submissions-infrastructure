@@ -8,35 +8,37 @@ This repository contains infrastructure automation code for generating on-prem c
 
 ## Key Commands
 
-### Bootstrap Infrastructure
+Everything goes through one command, `scripts/iac`, a stdlib-only
+`uv run` script. `--target`, `--verbose` and `--dry-run` work before or
+after the subcommand. Without `--target`, the target comes from
+`IAC_PARENT` or `iac_parent` in a config file (see `docs/iac.md`).
+
 ```bash
-# Bootstrap new infrastructure with all components
-scripts/bootstrap TARGET_DIR
-scripts/bootstrap TARGET_DIR --verbose --force
+scripts/iac --help
+scripts/iac SUBCOMMAND --help   # needs no target and no engine
 
-# Bootstrap just the engine (management tools)
-scripts/bootstrap-engine TARGET_DIR
-scripts/bootstrap-engine TARGET_DIR --offline --verbose -y
-```
+# Create whatever a deployment is missing; never removes anything
+scripts/iac bootstrap --target TARGET_DIR
 
-### Deploy Infrastructure Tiers
-```bash
-# Deploy specific tier using the engine
-scripts/deploy TARGET_DIR TIER
-scripts/deploy /path/to/target blue --offline
-scripts/deploy /path/to/target staging --dry-run --force
-# the tier is usually staging
-```
+# Replace the engine (management tools) in the inactive slot
+scripts/iac engine --target TARGET_DIR --offline
 
-### Promote Staging to Production
-```bash
-# Switch production and staging symlinks (requires IAC_TIER_DIR in environment)
-scripts/promote_staging
+# Deploy a tier; the tier is staging unless --tier says otherwise
+scripts/iac deploy --target TARGET_DIR
+scripts/iac deploy --target TARGET_DIR --dry-run     # changes nothing
+scripts/iac deploy --target TARGET_DIR --tier blue --overwrite
 
-# This swaps which tier is production and which is staging
+# Swap production and staging
 # Example: if production -> blue and staging -> green, after promotion:
 #          production -> green and staging -> blue
+scripts/iac promote --target TARGET_DIR
+
+# Show the engine, the tier links, and what is deployed
+scripts/iac status --target TARGET_DIR
 ```
+
+`scripts/bootstrap`, `scripts/bootstrap-engine`, and `scripts/deploy` are
+deprecated shims that translate their arguments and call `iac`.
 
 ### AWS Tools Installation
 ```bash
@@ -46,10 +48,10 @@ bash scripts/install-aws-tools.sh
 
 ## Documentation
 
-Detailed documentation for key scripts is available in the `docs/` directory:
-- **docs/bootstrap.md**: Complete documentation for `scripts/bootstrap-engine`
-- **docs/deploy.md**: Documentation for `scripts/deploy` and the Python engine
+Detailed documentation is in the `docs/` directory:
+- **docs/iac.md**: The `iac` command: target resolution, subcommands, exit codes
 - **docs/promote_staging.md**: Blue/green promotion workflow documentation
+- **docs/bootstrap.md**, **docs/deploy.md**: The deprecated shims and how their arguments map to `iac`
 
 ## Architecture
 
@@ -99,10 +101,17 @@ When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment vari
 
 **Usage**:
 - Interactive users can view these variables with the `iac_dump_vars` shell function
-- The `scripts/promote_staging` script requires `IAC_TIER_DIR` to be set in the environment (this indicates which tier is currently active and needs promotion)
+- `scripts/iac` uses `IAC_PARENT` as its default target, so `--target` is unnecessary in a shell that has sourced a tier
+- `scripts/promote_staging`, when run directly, requires `IAC_TIER_DIR`; `scripts/iac promote` supplies it
 - Users switch between tiers using `iac_load <tier_name>` (e.g., `iac_load staging`)
 
 ### Code Architecture
+
+**Two Python packages under `scripts/`**:
+- `scripts/iac_cli/`: the `iac` command. Standard library only, because it runs under uv before any engine exists. `cli.py` (parsing, dispatch), `config.py` (target resolution), `bootstrap.py` (layout, engine install and rotation), `tiers.py` (deploy, promote, status), `exit_codes.py` (the one exit-code table), `common.py` (`Context`, `IacError`, command running). Never import `rich` or `yaml` here.
+- `scripts/engine/`: the deployer. Runs under the engine's own Python (which has rich and PyYAML), started by `iac deploy` through `scripts/sanitize-command`.
+
+Subcommand functions take a `Context`; tests inject a fake `run` callable instead of running micromamba.
 
 **Testability Design**:
 - `scripts/engine/filesystem.py`: Filesystem abstraction with Protocol, real implementation, and mock
@@ -113,7 +122,7 @@ When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment vari
 
 **Mamba Detection**:
 `find_mamba()` in `scripts/engine/deploy.py` looks in this order:
-1. **Engine-relative**: `bin/mamba`, then `condabin/mamba`, in the environment that `sys.executable` belongs to. This is what `scripts/deploy` relies on, because it runs the engine with `PATH=/usr/bin:/bin`.
+1. **Engine-relative**: `bin/mamba`, then `condabin/mamba`, in the environment that `sys.executable` belongs to. This is what `iac deploy` relies on, because it runs the engine with `PATH=/usr/bin:/bin`.
 2. **PATH**: `shutil.which("mamba")`, a fallback for development.
 
 Tests inject a location with the `mamba_path` parameter of `deploy_tier()` or by patching `find_mamba`.
@@ -134,7 +143,7 @@ Tests inject a location with the `mamba_path` parameter of `deploy_tier()` or by
 ### Debugging
 - Use `--verbose` flag for detailed logging
 - Per-environment mamba logs are in `TARGET_DIR/logs/`
-- `scripts/deploy` exits 4 if any environment fails to install
+- `iac deploy` exits 4 if any environment fails to install
 - YAML definitions are automatically validated before deployment
 - Required binaries (curl, tar, git) are checked before bootstrap with helpful error messages
 
@@ -147,7 +156,7 @@ Tests inject a location with the `mamba_path` parameter of `deploy_tier()` or by
 pytest tests/unit/
 
 # Run specific test file
-pytest tests/unit/test_deploy_args.py -v
+pytest tests/unit/test_iac_cli.py -v
 
 # Run integration tests (requires --run-integration flag)
 pytest tests/integration/ --run-integration

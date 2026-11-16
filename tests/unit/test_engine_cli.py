@@ -62,19 +62,35 @@ def test_parse_keep_flag(tmp_path, monkeypatch):
     assert args.mode == "keep"
 
 
-def test_parse_force_flag(tmp_path, monkeypatch):
-    """Test parsing --force flag."""
-    test_args = ["engine", str(tmp_path), "staging", "--force"]
-    monkeypatch.setattr(sys, "argv", test_args)
-
-    args = parse_command_line()
+def test_parse_overwrite_flag(tmp_path):
+    """Test that --overwrite replaces the tier but keeps the disk check."""
+    args = parse_command_line([str(tmp_path), "staging", "--overwrite"])
 
     assert args.mode == "force"
+    assert args.skip_disk_check is False
 
 
-@pytest.mark.parametrize("flags", [["--keep", "--force"], ["--force", "--keep"]])
-def test_keep_and_force_mutually_exclusive(tmp_path, flags):
-    """Test that --keep and --force cannot be combined."""
+def test_parse_skip_disk_check_flag(tmp_path):
+    """Test that --skip-disk-check does not imply overwriting."""
+    args = parse_command_line([str(tmp_path), "staging", "--skip-disk-check"])
+
+    assert args.skip_disk_check is True
+    assert args.mode is None
+
+
+def test_force_flag_is_gone(tmp_path):
+    """Test that the overloaded --force flag is rejected."""
+    with pytest.raises(SystemExit) as exc_info:
+        parse_command_line([str(tmp_path), "staging", "--force"])
+
+    assert exc_info.value.code == 2
+
+
+@pytest.mark.parametrize(
+    "flags", [["--keep", "--overwrite"], ["--overwrite", "--keep"]]
+)
+def test_keep_and_overwrite_mutually_exclusive(tmp_path, flags):
+    """Test that --keep and --overwrite cannot be combined."""
     with pytest.raises(SystemExit) as exc_info:
         parse_command_line([str(tmp_path), "staging", *flags])
 

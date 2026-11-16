@@ -8,23 +8,23 @@ Each numbered section is one unit of work: tests and `ruff check` pass, then
 commit. Findings marked **(ran)** were reproduced; **(read)** come from
 reading the code and need a failing test first.
 
-## Decisions needed
+## Decisions
 
-These change the shape of sections 2 to 4. Recommendations are listed first.
+Decided 2026-11-16: the recommendation was accepted for all four.
 
-- [ ] **D1. Language of the top-level `iac` command.** Recommended: a
+- [x] **D1. Language of the top-level `iac` command.** Recommended: a
   stdlib-only `uv run --script` Python file, which makes uv a prerequisite
   for operators. Alternative: bash, which keeps the "bash, posix and curl"
   promise but makes the TOML config lookup of issue #19 awkward.
-- [ ] **D2. What `bootstrap --force` does.** Today it removes all of
+- [x] **D2. What `bootstrap --force` does.** Today it removes all of
   `infrastructure/`, production included. Recommended: make bootstrap
   idempotent (create what is missing, never delete) and drop the flag.
   Alternative: keep the wipe under an explicit name such as `--wipe`.
-- [ ] **D3. Fate of the old entry points.** Recommended: keep
+- [x] **D3. Fate of the old entry points.** Recommended: keep
   `scripts/bootstrap`, `bootstrap-engine`, `deploy`, `promote_staging` as
   thin shims that call `iac` for one release, then remove. Alternative:
   remove them in the same change.
-- [ ] **D4. Should `deploy` stop at the first failed environment?**
+- [x] **D4. Should `deploy` stop at the first failed environment?**
   Recommended: attempt all, then exit non-zero and list the failures.
 
 ## 1. Make the project runnable (prerequisite)
@@ -79,31 +79,36 @@ Target form, from #19:
 iac [--target IAC_PARENT] [-v] [-n] SUBCOMMAND [options]
 ```
 
-- [ ] Subcommands: `bootstrap`, `engine` (rotate), `deploy [--tier staging]`,
+Done 2026-11-16. `scripts/iac` is a stdlib-only uv script; the code is in
+`scripts/iac_cli/`. The bootstrap and engine logic was ported from bash to
+Python so the old scripts could become shims. Covered by
+`tests/unit/test_iac_*.py`, including subprocess tests of the real entry
+points, and tried by hand against a stand-in engine with a fake mamba.
+
+**Not verified:** a real `iac bootstrap` or `iac engine`, which downloads
+micromamba and builds the engine. Run one on a scratch target before
+relying on it, and run the integration and E2E suites.
+
+- [x] Subcommands: `bootstrap`, `engine` (rotate), `deploy [--tier staging]`,
   `promote`, `status`.
-- [ ] Target resolution, last wins: `REPO/iac_config.toml`,
+- [x] Target resolution, last wins: `REPO/iac_config.toml`,
   `~/.config/iac/config.toml`, `$PWD/iac_config.toml`, `IAC_PARENT`,
   `--target`. Error clearly when none is set.
-- [ ] `--tier` defaults to `staging`.
-- [ ] `--help` works for every subcommand with no target and no engine.
-  Today `scripts/deploy --help` and bare `scripts/deploy` fail with
-  `env: engine_home/engine/bin/python3: No such file or directory`
-  **(ran)**.
-- [ ] One meaning per flag across subcommands. `--force` currently means
-  "wipe infrastructure" (bootstrap), "skip the disk check"
-  (bootstrap-engine), and "overwrite environments and skip the disk check"
-  (deploy). Split into `--overwrite` and `--skip-disk-check`; apply D2.
-- [ ] `-v/--verbose` works everywhere. Today `deploy` has no verbose switch:
-  the engine reads `VERBOSE` from an environment the wrapper has cleared.
-- [ ] `-n/--dry-run` is global and is passed through; `bootstrap --dry-run`
-  currently only prints that it would call `bootstrap-engine --dry-run`.
-- [ ] Remove `--no-color` from the bootstrap usage text, or implement it; it
-  is documented and rejected **(ran)**.
-- [ ] One exit-code table, defined once and used by every subcommand. The
-  two bash usage texts currently disagree about code 1.
-- [ ] `iac status`: show target, engine link, tier links, and each tier's
-  `meta/` commit. Read-only.
-- [ ] Apply D3 to the old scripts.
+- [x] `--tier` defaults to `staging`.
+- [x] `--help` works for every subcommand with no target and no engine.
+- [x] One meaning per flag: `--overwrite` and `--skip-disk-check` replace
+  `--force`, in `iac` and in the engine. Bootstrap never deletes (D2).
+- [x] `-v/--verbose` works everywhere and reaches the engine as `VERBOSE=1`.
+- [x] `-n/--dry-run` works before or after the subcommand.
+- [x] `--no-color` is gone with the old usage text.
+- [x] One exit-code table in `scripts/iac_cli/exit_codes.py`, shown by
+  `iac --help`. Usage errors exit 1, not argparse's 2. The engine still
+  uses literal 2, 3, 4 with the same meanings.
+- [x] `iac status`.
+- [x] D3: `bootstrap`, `bootstrap-engine`, `deploy` are shims.
+  `promote_staging` is not yet one; `iac promote` runs it under the
+  engine's Python with `IAC_TIER_DIR` supplied. Section 4 finishes this.
+- [ ] Remove the shims after one release.
 
 ## 4. Promotion (issue #24)
 
@@ -113,7 +118,10 @@ iac [--target IAC_PARENT] [-v] [-n] SUBCOMMAND [options]
   only the standard library; split the symlink validators from the YAML
   ones.
 - [ ] Take the target from `iac` (section 3) instead of requiring
-  `IAC_TIER_DIR`. This is the fix proposed in the #24 comment.
+  `IAC_TIER_DIR`. This is the fix proposed in the #24 comment. Partly
+  done: `iac promote` works without `IAC_TIER_DIR`, but only by delegating
+  to `promote_staging`, so it needs an engine. Move the logic into
+  `iac_cli` and make `promote_staging` a shim.
 - [ ] Swap symlinks atomically (temp link plus rename). Today production is
   unlinked first, leaving a window, and a crash, with no production.
 - [ ] Refuse to promote a tier that was never deployed (no `meta/commit` or
@@ -127,29 +135,32 @@ iac [--target IAC_PARENT] [-v] [-n] SUBCOMMAND [options]
 
 ## 5. Bootstrap and engine
 
-- [ ] `bootstrap` rotates the engine before it checks that `infrastructure`
-  exists, so a refused bootstrap still rotates the engine **(read)**.
-  Validate first.
-- [ ] With a relative `TARGET_DIR`, `bootstrap` does `cd "$TARGET_DIR"` and
-  then tests `$TARGET_DIR/infrastructure` relative to the new directory
-  **(read)**. Make the target absolute at parse time.
+- [x] `bootstrap` rotated the engine before checking that `infrastructure`
+  existed. Gone with the port: `iac bootstrap` never rotates an existing
+  engine.
+- [x] Relative `TARGET_DIR` handling. Gone with the port: the target is
+  made absolute when it is resolved.
 - [ ] `fetch-micromamba` matches `Linux arm64`; Linux reports `aarch64`.
 - [ ] `fetch-micromamba` is `#!/bin/sh` but uses `set -o pipefail`.
 - [ ] Pin the micromamba version and verify a checksum instead of
   downloading `latest`.
-- [ ] Engine symlink update is remove-then-create; make it atomic.
+- [x] Engine symlink update is atomic (temporary link, then rename).
 - [ ] `sanitize-command` expands `$LOGNAME`, `$USER`, `$SHELL` unquoted and
   exists in two identical copies (`scripts/`, `resources/bin/`). Keep one.
 - [ ] Put git in the engine and use it for `meta/` (issue #41).
-- [ ] `usage()` in `bootstrap` calls `exit` itself and has a typo
-  ("populated it with  a").
+- [x] `usage()` in `bootstrap`: gone with the port.
 
 ## 6. Tests
 
 - [ ] Add a failing test for each **(read)** item above before fixing it.
 - [ ] Subprocess tests for the real CLI with a fake `mamba` on a fixture
   target: help, dry run, failure exit status, mamba discovery. This is old
-  item 7.1 and closes the gap that hid the section 2 bugs.
+  item 7.1 and closes the gap that hid the section 2 bugs. Partly done:
+  `tests/unit/test_iac_scripts.py` covers help, no-target, dry run, and
+  the shims. Still missing: a fixture engine so `iac deploy` runs end to
+  end with a fake mamba (done by hand only).
+- [ ] The integration and E2E suites still drive `scripts/bootstrap-engine`
+  and call `deploy_tier()` directly. Point them at `scripts/iac`.
 - [ ] Integration tests call `pytest.skip` when bootstrap fails
   (`tests/integration/test_bootstrap.py`), which hides real failures. Fail
   instead.
@@ -188,12 +199,10 @@ iac [--target IAC_PARENT] [-v] [-n] SUBCOMMAND [options]
 
 ## 8. Docs
 
-- [ ] Rewrite README, `docs/`, and CLAUDE.md around `iac` once section 3
-  lands.
-- [ ] Until then, correct what is wrong now: CLAUDE.md and
-  `docs/README.md` tell users to pass `--verbose` to `deploy`; CLAUDE.md
-  shows `staging --dry-run --force` as a safe preview.
-- [ ] Document the exit codes and the environment-definition format once.
+- [x] README, `docs/`, and CLAUDE.md rewritten around `iac`; new
+  `docs/iac.md` includes the exit codes.
+- [ ] Rewrite `docs/promote_staging.md` with section 4.
+- [ ] Document the environment-definition format.
 
 ## 9. Backlog (after the above)
 

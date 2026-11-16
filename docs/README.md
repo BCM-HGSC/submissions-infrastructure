@@ -1,131 +1,46 @@
 # Documentation Index
 
-This directory contains comprehensive documentation for the submissions-infrastructure project's core scripts and workflows.
+- **[iac.md](iac.md)**: the `scripts/iac` command. Start here. Covers
+  choosing the target, every subcommand, exit codes, and the mapping from
+  the old scripts.
+- **[promote_staging.md](promote_staging.md)**: how promotion swaps the
+  staging and production links.
+- **[bootstrap.md](bootstrap.md)**, **[deploy.md](deploy.md)**: the
+  deprecated `bootstrap`, `bootstrap-engine`, and `deploy` scripts.
+- **[../CLAUDE.md](../CLAUDE.md)**: architecture, testing, and development
+  workflow.
 
-## Available Documentation
+## Which command?
 
-- **[bootstrap.md](bootstrap.md)** - Complete documentation for `scripts/bootstrap-engine`
-  - Engine creation and rotation
-  - Blue/green deployment for the management engine
-  - Binary verification and micromamba setup
+| Situation | Command |
+|---|---|
+| New deployment | `scripts/iac bootstrap --target TARGET`, then `scripts/iac deploy --target TARGET` |
+| Update the software | `scripts/iac deploy`, test in staging, then `scripts/iac promote` |
+| Update the engine itself | `scripts/iac engine`, then `scripts/iac deploy` |
+| See what is deployed | `scripts/iac status` |
 
-- **[deploy.md](deploy.md)** - Documentation for `scripts/deploy` and the Python deployment engine
-  - Tier deployment and management
-  - Environment discovery and validation
-  - Profile generation and IAC variables
+`--target` can be left out once `IAC_PARENT` is in the environment or a
+config file names the target; see [iac.md](iac.md).
 
-- **[promote_staging.md](promote_staging.md)** - Blue/green promotion workflow
-  - Staging to production promotion
-  - Symlink rotation and validation
-  - Zero-downtime deployment workflow
+## Full cycle
 
-## Quick Start Guide
-
-### New Deployment
-
-If you're setting up a new infrastructure deployment from scratch:
-
-1. **Bootstrap the infrastructure** - Creates engine and directory structure
-   - Read: [bootstrap.md](bootstrap.md)
-   - Run: `scripts/bootstrap TARGET_DIR`
-
-2. **Deploy a tier** - Creates conda environments for a specific tier
-   - Read: [deploy.md](deploy.md)
-   - Run: `scripts/deploy TARGET_DIR staging`
-
-3. **Test and promote** - Move staging to production
-   - Read: [promote_staging.md](promote_staging.md)
-   - Run: `scripts/promote_staging` (after sourcing tier profile)
-
-### Updating Existing Infrastructure
-
-If you already have infrastructure and want to update it:
-
-1. **Update staging tier** - Deploy changes to staging first
-   - Read: [deploy.md](deploy.md)
-   - Run: `scripts/deploy TARGET_DIR staging`
-
-2. **Test changes** - Validate in staging environment
-   - Source: `source TARGET_DIR/infrastructure/staging/etc/profile.sh`
-   - Test your workflows
-
-3. **Promote to production** - Make staging the new production
-   - Read: [promote_staging.md](promote_staging.md)
-   - Run: `scripts/promote_staging`
-
-### Engine Updates
-
-If you need to update the management engine itself:
-
-1. **Update engine** - Rotate to new engine version
-   - Read: [bootstrap.md](bootstrap.md)
-   - Run: `scripts/bootstrap-engine TARGET_DIR`
-
-2. **Deploy with new engine** - Use the updated engine to deploy tiers
-   - Read: [deploy.md](deploy.md)
-   - Run: `scripts/deploy TARGET_DIR staging`
-
-## Decision Tree
-
-```
-Are you starting from scratch?
-├─ Yes → Start with bootstrap.md
-│         Run: scripts/bootstrap TARGET_DIR
-│         Then: scripts/deploy TARGET_DIR staging
-│
-└─ No → Do you need to update the engine?
-        ├─ Yes → See bootstrap.md
-        │         Run: scripts/bootstrap-engine TARGET_DIR
-        │
-        └─ No → Do you want to update a tier?
-                ├─ Yes → See deploy.md
-                │         Run: scripts/deploy TARGET_DIR staging
-                │         Then promote with scripts/promote_staging
-                │
-                └─ Just learning? → Read all three docs in order:
-                                     1. bootstrap.md
-                                     2. deploy.md
-                                     3. promote_staging.md
-```
-
-## Additional Resources
-
-- **[../CLAUDE.md](../CLAUDE.md)** - Project architecture, testing, and development workflow
-- **[../README.md](../README.md)** - Project overview and quick reference
-
-## Common Workflows
-
-### Full Deployment Cycle
 ```bash
 # 1. Bootstrap (first time only)
-scripts/bootstrap /path/to/target
+scripts/iac bootstrap --target /path/to/target
 
 # 2. Deploy to staging
-scripts/deploy /path/to/target staging
+scripts/iac deploy --target /path/to/target
 
 # 3. Test in staging
 source /path/to/target/infrastructure/staging/etc/profile.sh
 # ... run tests ...
 
 # 4. Promote to production
-scripts/promote_staging
+scripts/iac promote --target /path/to/target
 ```
 
-### Update and Rotation
-```bash
-# Deploy changes to staging
-scripts/deploy /path/to/target staging --offline
+## Getting help
 
-# Test thoroughly
-source /path/to/target/infrastructure/staging/etc/profile.sh
-# ... validate changes ...
-
-# Promote when ready
-scripts/promote_staging
-```
-
-## Getting Help
-
-- Check script help: `scripts/<script-name> --help`
-- Use dry-run mode: `scripts/<script-name> --dry-run`
-- Enable verbose output: `scripts/<script-name> --verbose`
+- `scripts/iac --help` and `scripts/iac SUBCOMMAND --help`
+- `--dry-run` shows what a command would do without changing anything
+- `--verbose` logs debugging detail

@@ -760,7 +760,7 @@ def test_check_disk_space_below_minimum_no_force(mock_get_space, tmp_path):
     assert "Insufficient disk space" in error_msg
     assert "10.0GB" in error_msg
     assert "15GB minimum" in error_msg
-    assert "Use --force to override" in error_msg
+    assert "Use --skip-disk-check to override" in error_msg
 
 
 @patch("scripts.engine.validators.get_available_space_gb")
@@ -770,7 +770,7 @@ def test_check_disk_space_below_minimum_with_force(mock_get_space, tmp_path):
 
     success, message = check_disk_space(tmp_path, operation="deploy", force=True)
     assert success is True
-    assert "WARNING: Proceeding anyway due to --force flag" in message
+    assert "WARNING: Proceeding anyway due to --skip-disk-check" in message
     assert "10.0GB" in message
 
 

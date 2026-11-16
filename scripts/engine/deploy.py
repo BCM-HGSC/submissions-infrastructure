@@ -38,6 +38,7 @@ def deploy_tier(
     dry_run: bool,
     offline: bool,
     mode: str | None = None,
+    skip_disk_check: bool = False,
     filesystem: FileSystemProtocol | None = None,
     command_runner: CommandRunnerProtocol | None = None,
     env_yamls: list[Path] | None = None,
@@ -51,7 +52,7 @@ def deploy_tier(
     mamba_binary = mamba_path if mamba_path is not None else find_mamba()
 
     worklist = env_yamls if env_yamls is not None else list_conda_environment_defs()
-    require_disk_space(target, worklist, force=mode == "force")
+    require_disk_space(target, worklist, force=skip_disk_check)
     check_mamba(filesystem, mamba_binary)
     # Only locate production; never create it.
     prod_path = setup_tier_path(target, "production", filesystem, create=False)

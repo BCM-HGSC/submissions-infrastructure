@@ -1,6 +1,8 @@
 # Global team git config file.
 # This file is loaded because $XDG_CONFIG_HOME/git points here.
-# At the bottom we source ~/.gitconfig, to load the normal home directory items.
+# Git also reads ~/.gitconfig after this file, so each user's name, email,
+# aliases, and other personal settings still apply and override these
+# defaults. Do not include ~/.gitconfig here: that would load it twice.
 
 # In order for all this to work, we must set XDG_CONFIG_HOME to the grandparent of
 # this file, typically with an alias:
@@ -81,7 +83,3 @@
     hunk-header-style = file line-number syntax
 [cola]
 	spellcheck = false
-
-# Load user config for things like name, email, and any personal overrides.
-[include]
-	path = ~/.gitconfig

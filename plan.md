@@ -194,10 +194,10 @@ Done 2026-11-16.
 - [x] `PIP_CACHE_DIR` defaults to `$IAC_PARENT/users/$USER/pip_cache`
   (issue #26). Per user, because pip disables a cache directory it does
   not own.
-- [ ] Homebrew hidden on macOS (issue #39). Cause and trade-offs are
-  written up on the issue. Waiting on a decision between adding
-  `/opt/homebrew/bin` to the fixed `PATH` and appending
-  `IAC_ORIGINAL_PATH`.
+- [x] Homebrew hidden on macOS (issue #39). Decided 2026-11-16: `profile.sh`
+  appends the entries of `IAC_ORIGINAL_PATH` after the tier's directories
+  (PR #54). Deployed on the Mac only; the clusters still hide the caller's
+  `PATH` until their next deploy.
 - [x] `mac/bioconda.yaml` was never deployed; deleted, with the `bioconda`
   entry in `profile.sh`. CLAUDE.md no longer describes an `experimental/`
   directory.
@@ -250,4 +250,27 @@ On the clusters `iac` was started with a Python from the deployment itself,
 because uv is not on `PATH` for `ssh host command`. The previous production
 tier is staging on each, so `iac promote` rolls back until the next deploy.
 
+The Mac was deployed and promoted a second time the same day, from 6f36302
+on branch `keep-original-path` (PR #54), to pick up the `PATH` fix. Its
+staging tier now holds 19c9487, so the 2025 tier is gone there.
+
 Not yet run anywhere: the E2E suite, and the integration suite on Linux.
+
+## Next
+
+- [ ] Merge PR #54.
+- [ ] Deploy and promote on the analysis and clinical clusters to pick up
+  the `PATH` fix. Not while jobs may be running: the deploy rebuilds the
+  staging tier, which was production until 2026-11-16, and jobs started
+  before that day's promotion may still be using it. Agree the timing
+  first.
+- [ ] Section 6 leftovers: `--run-e2e` anywhere, `--run-integration` on
+  Linux, offline-mode E2E.
+- [ ] Section 7 leftover: `va()`.
+- [ ] Section 8: document the environment-definition format.
+- [ ] Housekeeping seen on the clusters, none of it touched: stale remote
+  branches `updates` and `fixes`; `infrastructure/bin/uv` 0.11.3 on
+  analysis shadowing the tier's uv; stray directories
+  (`engine_home/${IAC_PARENT}`, `infrastructure/testing`, and on analysis
+  `infrastructure/engine_home` and `infrastructure/conda_package_cache`).
+- [ ] Section 9 backlog.

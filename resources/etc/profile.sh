@@ -74,6 +74,24 @@ unset __temp_arg0 __temp_this_script
 
 PATH=~/bin:"$IAC_DIR/bin":"$IAC_TIER_DIR/bin":"$PATH"
 
+# Everything the caller had on PATH comes back, after the tier, so the
+# tier's tools win and nothing else disappears (Homebrew, /usr/sbin,
+# whatever "module load" added). Written to work in both bash and zsh.
+__iac_append_original_path() {
+    local entry rest="$IAC_ORIGINAL_PATH:"
+    while [[ -n $rest ]]; do
+        entry=${rest%%:*}
+        rest=${rest#*:}
+        [[ -z $entry ]] && continue
+        case ":$PATH:" in
+            *":$entry:"*) ;;
+            *) PATH="$PATH:$entry" ;;
+        esac
+    done
+}
+__iac_append_original_path
+unset -f __iac_append_original_path
+
 export PATH
 
 if [[ -n $ZSH_NAME ]]; then

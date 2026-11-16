@@ -99,6 +99,26 @@ def test_profile_puts_the_tier_first_on_path(source_profile, tier_profile):
     assert path.index(str(blue / "bin")) < path.index("/usr/bin")
 
 
+def test_profile_keeps_the_callers_path_after_the_tier(source_profile):
+    """Issue #39: resetting PATH hid Homebrew and everything else."""
+    original = "/opt/homebrew/bin:/usr/bin::/my tools/bin:/usr/bin:/bin"
+
+    result = source_profile('echo "$PATH"', PATH=original)
+
+    path = result.stdout.strip().split(":")
+    assert path[-2:] == ["/opt/homebrew/bin", "/my tools/bin"]
+    assert path.count("/usr/bin") == 1
+    assert "" not in path
+    assert result.stderr == ""
+
+
+def test_reloading_a_tier_does_not_grow_path(source_profile):
+    result = source_profile('first=$PATH; iac_reload; [[ $PATH == "$first" ]]')
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+
+
 def test_profile_keeps_a_pip_cache_the_user_chose(source_profile):
     result = source_profile('echo "$PIP_CACHE_DIR"', PIP_CACHE_DIR="/my/own/cache")
 

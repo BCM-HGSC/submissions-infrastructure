@@ -194,10 +194,9 @@ Done 2026-11-16.
 - [x] `PIP_CACHE_DIR` defaults to `$IAC_PARENT/users/$USER/pip_cache`
   (issue #26). Per user, because pip disables a cache directory it does
   not own.
-- [ ] Homebrew hidden on macOS (issue #39). Cause and trade-offs are
-  written up on the issue. Waiting on a decision between adding
-  `/opt/homebrew/bin` to the fixed `PATH` and appending
-  `IAC_ORIGINAL_PATH`.
+- [x] Homebrew hidden on macOS (issue #39). Decided 2026-11-16: `profile.sh`
+  appends the entries of `IAC_ORIGINAL_PATH` after the tier's directories.
+  Not yet deployed anywhere.
 - [x] `mac/bioconda.yaml` was never deployed; deleted, with the `bioconda`
   entry in `profile.sh`. CLAUDE.md no longer describes an `experimental/`
   directory.

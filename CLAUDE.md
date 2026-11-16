@@ -112,7 +112,7 @@ When users source `$IAC_TIER_DIR/etc/profile.sh`, the following environment vari
 - **IAC_TIER_NAME**: Name of the tier symlink being used (e.g., `production`, `staging`)
 - **IAC_DIR**: Path to the infrastructure directory (e.g., `/path/to/target/infrastructure`)
 - **IAC_PARENT**: Path to the TARGET_DIR (e.g., `/path/to/target`)
-- **IAC_ORIGINAL_PATH**: Original PATH before modifications by the infrastructure
+- **IAC_ORIGINAL_PATH**: Original PATH before modifications by the infrastructure. Its entries are appended to `PATH` after the tier's, so the tier wins and nothing the caller had is hidden
 - **CONDARC**: Path to the tier's conda configuration file (e.g., `$IAC_TIER_DIR/etc/condarc`)
 - **PIP_CACHE_DIR**: `$IAC_PARENT/users/$USER/pip_cache`, unless the user already set it
 

@@ -1,10 +1,10 @@
 """Shared pytest fixtures for submissions-infrastructure tests."""
 
+import os
 from pathlib import Path
-from subprocess import CompletedProcess
+import subprocess
 import sys
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -13,6 +13,32 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from engine.command_runner import MockCommandRunner
 from engine.filesystem import MockFileSystem
+
+REPO_ROOT = Path(__file__).parent.parent
+IAC = REPO_ROOT / "scripts" / "iac"
+
+
+def run_iac(*args: str, timeout: int = 60, **kwargs) -> subprocess.CompletedProcess:
+    """
+    Run the real scripts/iac with no default target and no git variables.
+
+    A git hook exports GIT_DIR and friends. Without this, any git command a
+    test starts would act on this repository instead of the one it means.
+    """
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key != "IAC_PARENT" and not key.startswith("GIT_")
+    }
+    return subprocess.run(
+        [str(IAC), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+        timeout=timeout,
+        **kwargs,
+    )
 
 
 @pytest.fixture
@@ -37,24 +63,6 @@ def tmp_target_dir(tmp_path: Path) -> Path:
     (target_dir / "infrastructure").mkdir()
 
     return target_dir
-
-
-@pytest.fixture
-def mock_mamba(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    """
-    Mock mamba/micromamba command execution.
-
-    Returns:
-        MagicMock object that can be used to verify mamba command calls.
-    """
-    mock = MagicMock()
-    # Default successful return
-    mock.return_value = CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b"")
-
-    # Mock subprocess.run to use our mock
-    monkeypatch.setattr("subprocess.run", mock)
-
-    return mock
 
 
 @pytest.fixture

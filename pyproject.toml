@@ -50,7 +50,7 @@ addopts = [
 
 # Coverage options
 [tool.coverage.run]
-source = ["scripts/engine"]
+source = ["scripts/engine", "scripts/iac_cli"]
 omit = [
     "*/tests/*",
     "*/__init__.py",
@@ -131,7 +131,7 @@ unfixable = []
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["engine"]
+known-first-party = ["engine", "scripts", "tests"]
 force-sort-within-sections = true
 
 [tool.ruff.format]

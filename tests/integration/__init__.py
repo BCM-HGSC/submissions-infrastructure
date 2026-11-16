@@ -1,5 +1,6 @@
-"""Integration tests for submissions-infrastructure.
+"""
+Integration tests: the real scripts/iac against a real target.
 
-Integration tests test complete workflows with actual script execution.
-They are marked with @pytest.mark.integration and require --run-integration flag.
+They build an engine, so they need uv, the network, and a few minutes.
+Marked with @pytest.mark.integration; run with --run-integration.
 """

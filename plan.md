@@ -235,4 +235,6 @@ Real runs on a scratch target, macOS arm64, 2026-11-16:
 - `iac deploy --dry-run`: `mamba_binary` is
   `engine_home/engine/bin/mamba`; nothing created.
 
-Not yet run anywhere: the Linux paths (see section 6).
+- `pytest tests/integration --run-integration`: 8 passed.
+
+Not yet run anywhere: the Linux paths and the E2E suite (see section 6).
